@@ -1,4 +1,4 @@
-import { Notice, Plugin } from "obsidian";
+import { Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, HEADING_DIVIDER_WIDTH_PX, type FormatForgeSettings } from "./settings";
 import { getSfFormattingApi, type SfFormattingApi, type SfPaletteColor, type SfPaletteName } from "./storyforgeBridge";
 import { getTfFormattingApi, type TfFormattingApi } from "./timelineForgeBridge";
@@ -16,10 +16,14 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
-		// Wait for layout to be ready before trying to connect to host plugins
+		this.addSettingTab(new FormatForgeSettingsTab(this.app, this));
+		this.addCommands();
+
+		// Soft-connect optional Forge hosts once the workspace is ready.
 		this.app.workspace.onLayoutReady(() => {
 			this.connectToStoryForge();
 			this.connectToTimelineForge();
+			this.applyEditorStyles();
 		});
 	}
 
@@ -30,6 +34,12 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		this.unregisterTimelineCompanion = null;
 		this.sfApi = null;
 		this.tfApi = null;
+		this.clearLocalStyleVars();
+	}
+
+	/** storyForge formatting API when that host is available. */
+	getStoryForgeApi(): SfFormattingApi | null {
+		return this.sfApi;
 	}
 
 	// ── FontCardHost interface ─────────────────────────────────────────────
@@ -49,7 +59,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		return this.ffSettings;
 	}
 
-	/** Palette from SF, or a fallback if SF is unavailable. */
+	/** Palette from storyForge when available, otherwise a local Custom fallback. */
 	getPalette(): { name: SfPaletteName; variant: string; customColors: SfPaletteColor[] } {
 		if (this.sfApi) return this.sfApi.getPalette();
 		return { name: "Custom", variant: "", customColors: [] };
@@ -58,7 +68,6 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	// ── Editor style application ───────────────────────────────────────────
 
 	applyEditorStyles(): void {
-		if (!this.sfApi) return;
 		const s = this.ffSettings;
 		const vars: Record<string, string | null> = {};
 
@@ -67,6 +76,17 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		vars["--sf-body-color"] = s.bodyTextOverrideColor ? s.bodyTextColor : null;
 		vars["--sf-body-bold-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextBoldColor : null;
 		vars["--sf-body-italic-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextItalicColor : null;
+
+		// Sizes stay storyForge-linked when that host is present.
+		if (this.sfApi) {
+			const linked = this.sfApi.getLinkedSettings();
+			vars["--sf-body-size"] = linked.bodyTextOverrideSize ? `${linked.bodyTextSize as number}em` : null;
+			for (const n of [1, 2, 3, 4, 5, 6] as const) {
+				const override = linked[`heading${n}OverrideSize` as const];
+				const size = linked[`heading${n}Size` as const];
+				vars[`--sf-h${n}-size`] = override ? `${size as number}em` : null;
+			}
+		}
 
 		// H1 — with link hiding
 		this.assignEditorFontVars(vars, "--sf-h1", s.heading1OverrideFont, s.heading1FontFamily, s.heading1FontWeight);
@@ -87,10 +107,16 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			vars[`--sf-h${n}-border-bottom`] = s[`${hn}DividerBelow`] ? `${HEADING_DIVIDER_WIDTH_PX[s[`${hn}DividerBelowThickness`]]}px solid var(--background-modifier-border)` : null;
 		}
 
-		this.sfApi.setStyleVars(vars);
+		if (this.sfApi) {
+			this.sfApi.setStyleVars(vars);
+			for (const doc of this.sfApi.getStyleDocuments()) {
+				registerCustomFontFaces(doc);
+			}
+			return;
+		}
 
-		// Register font faces into all documents
-		for (const doc of this.sfApi.getStyleDocuments()) {
+		this.applyStyleVarsLocally(vars);
+		for (const doc of this.getLocalStyleDocuments()) {
 			registerCustomFontFaces(doc);
 		}
 	}
@@ -122,16 +148,62 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		vars[`${prefix}-weight`] = variation != null ? null : fontWeight;
 	}
 
-	// ── storyForge connection ──────────────────────────────────────────────
+	private getLocalStyleDocuments(): Document[] {
+		const docs: Document[] = [document];
+		const workspace = this.app.workspace as unknown as {
+			getLayout?: () => unknown;
+			floatingSplit?: { children?: Array<{ win?: Window }> };
+		};
+		const floating = workspace.floatingSplit?.children ?? [];
+		for (const child of floating) {
+			const doc = child.win?.document;
+			if (doc && !docs.includes(doc)) docs.push(doc);
+		}
+		return docs;
+	}
+
+	private applyStyleVarsLocally(vars: Record<string, string | null>): void {
+		for (const doc of this.getLocalStyleDocuments()) {
+			const { style } = doc.body;
+			for (const [key, value] of Object.entries(vars)) {
+				if (value == null || value === "") style.removeProperty(key);
+				else style.setProperty(key, value);
+			}
+		}
+	}
+
+	private clearLocalStyleVars(): void {
+		const prefixes = ["--sf-body", "--sf-h1", "--sf-h2", "--sf-h3", "--sf-h4", "--sf-h5", "--sf-h6"];
+		const suffixes = [
+			"",
+			"-size",
+			"-color",
+			"-bold-color",
+			"-italic-color",
+			"-family",
+			"-variation",
+			"-weight",
+			"-variant",
+			"-border-top",
+			"-border-bottom",
+			"-link-color",
+			"-link-decoration",
+		];
+		for (const doc of this.getLocalStyleDocuments()) {
+			const { style } = doc.body;
+			for (const prefix of prefixes) {
+				for (const suffix of suffixes) {
+					style.removeProperty(`${prefix}${suffix}`);
+				}
+			}
+		}
+	}
+
+	// ── storyForge connection (optional) ───────────────────────────────────
 
 	private connectToStoryForge(): void {
 		const sfApi = getSfFormattingApi(this.app);
-		if (!sfApi) {
-			new Notice("formatForge: storyForge not found. Enable storyForge to activate formatting.");
-			this.addSettingTab(new FormatForgeSettingsTab(this.app, this, null));
-			this.addCommands(null);
-			return;
-		}
+		if (!sfApi) return;
 
 		this.sfApi = sfApi;
 
@@ -139,7 +211,6 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			pluginId: "formatforge",
 			version: 1,
 			openSettings: () => {
-				// Open the Obsidian settings modal to the formatForge tab
 				const settingApp = (this.app as unknown as { setting?: { open(): void; openTabById(id: string): void } }).setting;
 				settingApp?.open();
 				settingApp?.openTabById("formatforge");
@@ -153,29 +224,22 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			registerFacesForDocument: (doc) => registerCustomFontFaces(doc),
 		});
 
-		// Register faces into all currently open documents
 		for (const doc of sfApi.getStyleDocuments()) {
 			registerCustomFontFaces(doc);
 		}
 
-		// Apply editor styles immediately
 		this.applyEditorStyles();
 
-		// Register the view contribution stub (slot: "storyforge-panel")
 		sfApi.registerViewContribution({
 			slot: "storyforge-panel",
 			orderHint: 50,
 			render: (_containerEl) => {
-				// Minimal stub — no panel contribution in this release
 				return () => { /* no-op disposer */ };
 			},
 		});
-
-		this.addSettingTab(new FormatForgeSettingsTab(this.app, this, sfApi));
-		this.addCommands(sfApi);
 	}
 
-	// ── timelineForge connection ───────────────────────────────────────────
+	// ── timelineForge connection (optional) ────────────────────────────────
 
 	private connectToTimelineForge(): void {
 		const tryConnect = (): boolean => {
@@ -231,7 +295,6 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		}, 500);
 		this.registerInterval(handle);
 
-		// Also retry when the workspace settles (plugin enable / layout).
 		this.registerEvent(
 			this.app.workspace.on("layout-change", () => {
 				tryConnect();
@@ -239,23 +302,23 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		);
 	}
 
-	private addCommands(sfApi: SfFormattingApi | null): void {
+	private addCommands(): void {
 		this.addCommand({
 			id: "open-text-style-modal",
 			name: "Open text styling",
 			callback: () => {
 				void import("./view/TextStyleModal").then(({ TextStyleModal }) => {
-					new TextStyleModal(this.app, this, sfApi).open();
+					new TextStyleModal(this.app, this, this.sfApi).open();
 				});
 			},
 		});
 
 		this.addCommand({
 			id: "open-ui-formatting-modal",
-			name: "Open storyForge interface styles",
+			name: "Open Forge interface styles",
 			callback: () => {
 				void import("./view/UiFormattingModal").then(({ UiFormattingModal }) => {
-					new UiFormattingModal(this.app, this, sfApi).open();
+					new UiFormattingModal(this.app, this, this.sfApi).open();
 				});
 			},
 		});

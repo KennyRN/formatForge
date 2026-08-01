@@ -166,53 +166,186 @@
 
 /* ── Settings tab notices ──────────────────────────────────────────────── */
 
-.ff-settings-description,
-.ff-no-sf-notice {
+.ff-settings-description {
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
 	margin-top: 0;
 	margin-bottom: var(--size-4-4);
 }
 
-.ff-no-sf-notice {
-	color: var(--text-warning, var(--color-orange));
+/* ── Editor typography (standalone + Forge hosts) ──────────────────────── */
+
+.markdown-reading-view h1 a:not(#formatforge-specificity-boost),
+.cm-header-1.cm-hmd-internal-link:not(#formatforge-specificity-boost),
+.cm-header-1.cm-link:not(#formatforge-specificity-boost),
+.cm-header-1.cm-hmd-internal-link .cm-underline:not(#formatforge-specificity-boost),
+.cm-header-1.cm-link .cm-underline:not(#formatforge-specificity-boost) {
+	color: var(--sf-h1-link-color, revert);
+	text-decoration: var(--sf-h1-link-decoration, revert);
+}
+
+.markdown-reading-view p,
+.cm-line:not(.HyperMD-header) {
+	font-size: var(--sf-body-size, revert);
+	color: var(--sf-body-color, revert);
+	font-weight: var(--sf-body-weight, revert);
+	font-family: var(--sf-body-family, revert);
+	font-variation-settings: var(--sf-body-variation, revert);
+}
+.markdown-reading-view strong:not(#formatforge-specificity-boost),
+.cm-strong:not(#formatforge-specificity-boost) {
+	color: var(--sf-body-bold-color, revert);
+}
+.markdown-reading-view em:not(#formatforge-specificity-boost),
+.cm-em:not(#formatforge-specificity-boost) {
+	color: var(--sf-body-italic-color, revert);
+}
+
+.markdown-reading-view h1, .HyperMD-header-1 {
+	font-size: var(--sf-h1-size, revert);
+	font-weight: var(--sf-h1-weight, revert);
+	border-top: var(--sf-h1-border-top, revert);
+	border-bottom: var(--sf-h1-border-bottom, revert);
+	font-family: var(--sf-h1-family, revert);
+	font-variation-settings: var(--sf-h1-variation, revert);
+}
+.markdown-reading-view h1:not(#formatforge-specificity-boost),
+.cm-header-1:not(#formatforge-specificity-boost) {
+	color: var(--sf-h1-color, revert);
+}
+.markdown-reading-view h1:not(#formatforge-specificity-boost),
+.HyperMD-header-1:not(#formatforge-specificity-boost),
+.cm-header-1:not(#formatforge-specificity-boost) {
+	font-variant: var(--sf-h1-variant, revert);
+}
+
+.markdown-reading-view h2, .HyperMD-header-2 {
+	font-size: var(--sf-h2-size, revert);
+	font-weight: var(--sf-h2-weight, revert);
+	border-top: var(--sf-h2-border-top, revert);
+	border-bottom: var(--sf-h2-border-bottom, revert);
+	font-family: var(--sf-h2-family, revert);
+	font-variation-settings: var(--sf-h2-variation, revert);
+}
+.markdown-reading-view h2:not(#formatforge-specificity-boost),
+.cm-header-2:not(#formatforge-specificity-boost) {
+	color: var(--sf-h2-color, revert);
+}
+.markdown-reading-view h2:not(#formatforge-specificity-boost),
+.HyperMD-header-2:not(#formatforge-specificity-boost),
+.cm-header-2:not(#formatforge-specificity-boost) {
+	font-variant: var(--sf-h2-variant, revert);
+}
+
+.markdown-reading-view h3, .HyperMD-header-3 {
+	font-size: var(--sf-h3-size, revert);
+	font-weight: var(--sf-h3-weight, revert);
+	border-top: var(--sf-h3-border-top, revert);
+	border-bottom: var(--sf-h3-border-bottom, revert);
+	font-family: var(--sf-h3-family, revert);
+	font-variation-settings: var(--sf-h3-variation, revert);
+}
+.markdown-reading-view h3:not(#formatforge-specificity-boost),
+.cm-header-3:not(#formatforge-specificity-boost) {
+	color: var(--sf-h3-color, revert);
+}
+.markdown-reading-view h3:not(#formatforge-specificity-boost),
+.HyperMD-header-3:not(#formatforge-specificity-boost),
+.cm-header-3:not(#formatforge-specificity-boost) {
+	font-variant: var(--sf-h3-variant, revert);
+}
+
+.markdown-reading-view h4, .HyperMD-header-4 {
+	font-size: var(--sf-h4-size, revert);
+	font-weight: var(--sf-h4-weight, revert);
+	border-top: var(--sf-h4-border-top, revert);
+	border-bottom: var(--sf-h4-border-bottom, revert);
+	font-family: var(--sf-h4-family, revert);
+	font-variation-settings: var(--sf-h4-variation, revert);
+}
+.markdown-reading-view h4:not(#formatforge-specificity-boost),
+.cm-header-4:not(#formatforge-specificity-boost) {
+	color: var(--sf-h4-color, revert);
+}
+.markdown-reading-view h4:not(#formatforge-specificity-boost),
+.HyperMD-header-4:not(#formatforge-specificity-boost),
+.cm-header-4:not(#formatforge-specificity-boost) {
+	font-variant: var(--sf-h4-variant, revert);
+}
+
+.markdown-reading-view h5, .HyperMD-header-5 {
+	font-size: var(--sf-h5-size, revert);
+	font-weight: var(--sf-h5-weight, revert);
+	border-top: var(--sf-h5-border-top, revert);
+	border-bottom: var(--sf-h5-border-bottom, revert);
+	font-family: var(--sf-h5-family, revert);
+	font-variation-settings: var(--sf-h5-variation, revert);
+}
+.markdown-reading-view h5:not(#formatforge-specificity-boost),
+.cm-header-5:not(#formatforge-specificity-boost) {
+	color: var(--sf-h5-color, revert);
+}
+.markdown-reading-view h5:not(#formatforge-specificity-boost),
+.HyperMD-header-5:not(#formatforge-specificity-boost),
+.cm-header-5:not(#formatforge-specificity-boost) {
+	font-variant: var(--sf-h5-variant, revert);
+}
+
+.markdown-reading-view h6, .HyperMD-header-6 {
+	font-size: var(--sf-h6-size, revert);
+	font-weight: var(--sf-h6-weight, revert);
+	border-top: var(--sf-h6-border-top, revert);
+	border-bottom: var(--sf-h6-border-bottom, revert);
+	font-family: var(--sf-h6-family, revert);
+	font-variation-settings: var(--sf-h6-variation, revert);
+}
+.markdown-reading-view h6:not(#formatforge-specificity-boost),
+.cm-header-6:not(#formatforge-specificity-boost) {
+	color: var(--sf-h6-color, revert);
+}
+.markdown-reading-view h6:not(#formatforge-specificity-boost),
+.HyperMD-header-6:not(#formatforge-specificity-boost),
+.cm-header-6:not(#formatforge-specificity-boost) {
+	font-variant: var(--sf-h6-variant, revert);
 }
 
 /* ── Font picker modal ─────────────────────────────────────────────────── */
 
 .modal.ff-font-picker-modal {
-	width: min(640px, 92vw);
+	width: min(720px, 94vw);
 	max-height: 80vh;
 }
 
+.modal.ff-font-picker-modal .modal-close-button {
+	display: none;
+}
+
 .ff-font-picker-modal {
-	padding: 16px;
+	padding: 20px 24px;
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-}
-
-.ff-font-picker-modal h2 {
-	margin: 0 0 12px;
-	flex-shrink: 0;
 }
 
 .ff-font-picker-list {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 2px;
 	overflow-y: auto;
 	min-height: 0;
-	max-height: 60vh;
+	max-height: 70vh;
 }
 
 .ff-font-picker-row {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 8px 10px;
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	align-items: baseline;
+	column-gap: 1.25em;
+	padding: 12px 10px;
 	border-radius: 6px;
 	cursor: pointer;
+	line-height: 1.6;
+	box-sizing: border-box;
 }
 
 .ff-font-picker-row:hover {
@@ -221,29 +354,34 @@
 
 .ff-font-picker-row.is-selected {
 	background: var(--background-modifier-hover);
-	outline: 1px solid var(--interactive-accent);
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
 
-.ff-font-picker-previews {
-	flex: 1;
+.ff-font-picker-cell {
 	min-width: 0;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 0.75em 1.25em;
-	line-height: 1.2;
 }
 
 .ff-font-picker-sample {
+	display: block;
 	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	max-width: 100%;
+	overflow: visible;
 	color: var(--text-normal);
+	/* Script faces (e.g. Caveat) overhang their advance — keep stems/swashes inside the cell. */
+	padding-inline: 0.15em;
+	padding-block: 0.12em;
 }
 
-.ff-font-picker-select {
-	flex-shrink: 0;
-	margin-inline-start: auto;
+.ff-font-picker-sample.is-min {
+	text-align: end;
+	padding-inline-start: 0.35em;
+}
+
+.ff-font-picker-sample.is-normal {
+	text-align: start;
+}
+
+.ff-font-picker-sample.is-max {
+	text-align: start;
+	padding-inline-end: 0.35em;
 }
 

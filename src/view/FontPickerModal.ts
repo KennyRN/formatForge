@@ -1,13 +1,13 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, Modal } from "obsidian";
 import { CUSTOM_FONTS, type CustomFontEntry } from "../fonts";
-import { previewWeightsFor, weightPreviewLabel } from "./fontPickerUtils";
+import { previewWeightsFor, weightNameFor, weightPreviewLabel } from "./fontPickerUtils";
 
 export type FontPickerSelectHandler = (fontId: string) => void | Promise<void>;
 
 /**
- * Alphabetised font catalogue: each row shows the face name set in that font,
- * with weight samples (min / normal / max for variable faces; normal only for
- * fixed-weight faces). Preview size defaults to 1em, or the caller's region size.
+ * Alphabetised font catalogue in three columns: thinnest weight name | face name
+ * (normal) | heaviest weight name. Fixed-weight faces (e.g. Courier Prime) show
+ * only the face name in the centre column.
  */
 export class FontPickerModal extends Modal {
 	constructor(
@@ -21,6 +21,8 @@ export class FontPickerModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("ff-font-picker-modal");
+		this.titleEl.remove();
+		this.modalEl.querySelector(".modal-close-button")?.remove();
 		this.render();
 	}
 
@@ -33,8 +35,6 @@ export class FontPickerModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass("ff-font-picker-modal");
 
-		contentEl.createEl("h2", { text: "Pick font" });
-
 		const sizeEm = Number.isFinite(this.previewFontSizeEm) && this.previewFontSizeEm > 0 ? this.previewFontSizeEm : 1;
 		const list = contentEl.createDiv({ cls: "ff-font-picker-list" });
 		const fonts = [...CUSTOM_FONTS].sort((a, b) => a.label.localeCompare(b.label));
@@ -45,46 +45,55 @@ export class FontPickerModal extends Modal {
 	}
 
 	private renderFontRow(list: HTMLElement, font: CustomFontEntry, sizeEm: number): void {
-		const row = list.createDiv({ cls: "ff-font-picker-row sf-row" });
+		const row = list.createDiv({ cls: "ff-font-picker-row" });
 		if (font.id === this.selectedId) {
 			row.addClass("is-selected");
 		}
+		row.setCssStyles({ fontSize: `${sizeEm}em` });
 
-		const previews = row.createDiv({ cls: "ff-font-picker-previews" });
-		previews.setCssStyles({ fontSize: `${sizeEm}em` });
+		const fixed = font.weightMin === font.weightMax;
+		const normal = fixed ? font.weightMin : Math.max(font.weightMin, Math.min(400, font.weightMax));
 
-		const weights = previewWeightsFor(font);
-		for (const weight of weights) {
-			const sample = previews.createSpan({ cls: "ff-font-picker-sample", text: font.label });
-			if (font.weightMin === font.weightMax) {
-				sample.setCssStyles({
-					fontFamily: `"${font.cssFontFamily}", var(--font-text)`,
-					fontWeight: String(font.weightMin),
-					fontVariationSettings: "normal",
-				});
-			} else {
-				sample.setCssStyles({
-					fontFamily: `"${font.cssFontFamily}", var(--font-text)`,
-					fontWeight: String(weight),
-					fontVariationSettings: `"wght" ${weight}`,
-				});
-			}
-			sample.setAttr("title", weightPreviewLabel(weight, font));
+		if (fixed) {
+			row.createDiv({ cls: "ff-font-picker-cell is-min" });
+			this.renderSample(row, font, normal, font.label, "is-normal");
+			row.createDiv({ cls: "ff-font-picker-cell is-max" });
+		} else {
+			this.renderSample(row, font, font.weightMin, weightNameFor(font.weightMin), "is-min");
+			this.renderSample(row, font, normal, font.label, "is-normal");
+			this.renderSample(row, font, font.weightMax, weightNameFor(font.weightMax), "is-max");
 		}
-
-		const selectBtn = row.createEl("button", {
-			cls: "ff-font-picker-select clickable-icon",
-			attr: { "aria-label": `Select ${font.label}`, type: "button" },
-		});
-		setIcon(selectBtn, font.id === this.selectedId ? "check" : "circle");
-		selectBtn.addEventListener("click", (event) => {
-			event.stopPropagation();
-			void this.choose(font.id);
-		});
 
 		row.addEventListener("click", () => {
 			void this.choose(font.id);
 		});
+	}
+
+	private renderSample(
+		row: HTMLElement,
+		font: CustomFontEntry,
+		weight: number,
+		text: string,
+		slotClass: "is-min" | "is-normal" | "is-max",
+	): void {
+		const sample = row.createSpan({
+			cls: `ff-font-picker-sample ff-font-picker-cell ${slotClass}`,
+			text,
+		});
+		if (font.weightMin === font.weightMax) {
+			sample.setCssStyles({
+				fontFamily: `"${font.cssFontFamily}", var(--font-text)`,
+				fontWeight: String(font.weightMin),
+				fontVariationSettings: "normal",
+			});
+		} else {
+			sample.setCssStyles({
+				fontFamily: `"${font.cssFontFamily}", var(--font-text)`,
+				fontWeight: String(weight),
+				fontVariationSettings: `"wght" ${weight}`,
+			});
+		}
+		sample.setAttr("title", weightPreviewLabel(weight, font));
 	}
 
 	private async choose(fontId: string): Promise<void> {
@@ -93,4 +102,4 @@ export class FontPickerModal extends Modal {
 	}
 }
 
-export { previewWeightsFor } from "./fontPickerUtils";
+export { previewWeightsFor, weightNameFor } from "./fontPickerUtils";

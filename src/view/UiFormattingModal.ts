@@ -53,8 +53,8 @@ export class UiFormattingModal extends Modal {
 
 		if (!this.sfApi || !this.sfHost) {
 			contentEl.createEl("p", {
-				text: "storyForge is not loaded. Install and enable storyForge to use these settings.",
-				cls: "ff-no-sf-notice",
+				text: "No Forge host with panel chrome is connected yet. Text styling still works from the Text styling command; interface chrome appears when storyForge (or another host) is enabled.",
+				cls: "ff-settings-description",
 			});
 			return;
 		}

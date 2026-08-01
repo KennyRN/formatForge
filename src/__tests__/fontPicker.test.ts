@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CUSTOM_FONTS } from "../fonts";
-import { previewWeightsFor } from "../view/fontPickerUtils";
+import { previewWeightsFor, weightNameFor } from "../view/fontPickerUtils";
 
 describe("FontPickerModal preview weights", () => {
 	it("lists every catalog font alphabetically with expected samples", () => {
@@ -23,5 +23,14 @@ describe("FontPickerModal preview weights", () => {
 
 		const fake = { ...ibm!, weightMin: 400, weightMax: 900 };
 		expect(previewWeightsFor(fake)).toEqual([400, 900]);
+	});
+
+	it("maps CSS weight numbers to conventional names", () => {
+		expect(weightNameFor(100)).toBe("Thin");
+		expect(weightNameFor(300)).toBe("Light");
+		expect(weightNameFor(400)).toBe("Normal");
+		expect(weightNameFor(600)).toBe("Semi Bold");
+		expect(weightNameFor(700)).toBe("Bold");
+		expect(weightNameFor(900)).toBe("Black");
 	});
 });

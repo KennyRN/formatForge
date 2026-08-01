@@ -1,7 +1,7 @@
 {
 	"name": "formatforge",
-	"version": "0.1.0",
-	"description": "Typography companion plugin for storyForge.",
+	"version": "0.1.1",
+	"description": "Simple typography and colour formatting for Obsidian — standalone, and for the Forge plugin family.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

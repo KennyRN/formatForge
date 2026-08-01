@@ -1,14 +1,14 @@
-A simple to use obsidian plugin which adds simple colour selectors and inbuilt fonts
-
 # formatForge
 
-**formatForge** is a companion plugin for [storyForge](https://github.com/volcanicMole/storyforge) that owns all editor typography settings.
+**formatForge** adds simple typography and colour formatting to Obsidian — body and heading colours, fonts, dividers, and related styling UI.
+
+It works **on its own** for any vault that wants clearer note formatting. It also soft-integrates with the **Forge plugin family** (storyForge, timelineForge, and others that adopt the formatting API) so those plugins can share fonts, palettes, and chrome styling through formatForge.
 
 ## Requirements
 
-- storyForge plugin (API version 2+) must be installed and enabled.
 - Obsidian 1.13.0 or later.
 - Desktop only.
+- Forge hosts (storyForge, timelineForge, …) are **optional**. When present, formatForge registers as their typography companion; when absent, editor formatting still applies from formatForge’s own settings.
 
 ## What formatForge owns
 
@@ -19,16 +19,22 @@ A simple to use obsidian plugin which adds simple colour selectors and inbuilt f
 - **Small caps** per heading level
 - **Bold and italic emphasis colours** for body text
 - The full **Text Styling** modal UI
+- Embedded custom fonts (`fonts/` + `src/fonts.ts`)
 
-## What it shares with storyForge
+## Forge family integration
 
-- **Font sizes** (body and heading H1–H6) are stored in storyForge's `data.json` and exposed via the linked-settings API.
-- **Palette** (name, variant, custom colours) lives in storyForge but is read/written via `formatting.updatePalette`.
-- **storyForge panel chrome** (library, unplaced, codex, cycling guide, highlights, scrollbar) is managed through the storyForge Interface modal, which writes back to storyForge via `formatting.updateLinkedSetting`.
+When a Forge host is enabled, formatForge can also adjust that host’s formatting surface:
+
+| Host | What formatForge contributes |
+|---|---|
+| **storyForge** | Registers as formatting companion; applies editor CSS vars; shared palette; panel chrome (library, unplaced, codex, cycling guide, scrollbar) via the Forge interface modal; linked font sizes |
+| **timelineForge** | Font catalogue, font picker, and face registration for the timeline rail (controls live in timelineForge’s appearance UI) |
+
+Hosts are detected at runtime. Missing hosts are ignored — there is no required-plugin warning.
 
 ## How it registers with storyForge
 
-On load, formatForge calls:
+When storyForge API v2+ is available:
 
 ```ts
 app.plugins.getPlugin("storyforge")?.api.formatting.registerCompanion({
@@ -40,16 +46,7 @@ app.plugins.getPlugin("storyforge")?.api.formatting.registerCompanion({
 });
 ```
 
-storyForge will then:
-- Hide its own formatting settings tab entry.
-- Call `onHostStylesApplied` after each SF restyle so FF can refresh editor CSS vars.
-- Call `resolveFont` / `registerFacesForDocument` when it needs font information for SF panel chrome.
-
 ## How it registers with timelineForge
-
-formatForge also soft-depends on [timelineForge](https://github.com/KennyRN/timelineForge).
-Font controls for the timeline rail live **inside** timelineForge's Timeline
-appearance modal (not a separate formatForge modal). On load:
 
 ```ts
 app.plugins.getPlugin("timelineforge")?.api.formatting.registerCompanion({
@@ -62,14 +59,14 @@ app.plugins.getPlugin("timelineforge")?.api.formatting.registerCompanion({
 });
 ```
 
-See `docs/timelineforge-formatting-api.md`.
+See `docs/timelineforge-formatting-api.md` and `docs/storyforge-formatting-api.md`.
 
 ## Settings storage
 
 | Setting group | Persisted in |
 |---|---|
 | Editor body/heading colours, fonts, dividers, H1 link hiding | `formatForge/data.json` |
-| Font sizes (body + H1–H6) | `storyForge/data.json` (via linked settings API) |
-| Colour palette | `storyForge/data.json` (via `formatting.updatePalette`) |
-| storyForge panel chrome | `storyForge/data.json` (via `formatting.updateLinkedSetting`) |
+| Font sizes (body + H1–H6) | `storyForge/data.json` when storyForge is present (linked settings API) |
+| Colour palette | `storyForge/data.json` when storyForge is present |
+| storyForge panel chrome | `storyForge/data.json` via linked settings |
 | Timeline rail colours + typography | timelineForge `_tf-backstage/folders/*.md` |

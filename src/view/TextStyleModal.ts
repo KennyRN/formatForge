@@ -211,8 +211,8 @@ export class TextStyleModal extends Modal {
 	}
 
 	/**
-	 * Size cards write to SF linked settings (sizes are SF-owned).
-	 * When sfApi is unavailable, the card shows a disabled notice instead.
+	 * Size cards write to storyForge linked settings when that host is available.
+	 * Without a host, size overrides are omitted (theme defaults apply).
 	 */
 	private renderSizeCard(
 		body: HTMLElement,
@@ -226,15 +226,17 @@ export class TextStyleModal extends Modal {
 		extraRowBefore?: (card: SettingGroup) => void,
 	): void {
 		const sfApi = this.sfApi;
-		const initialOverride = sfApi ? (sfApi.getLinkedSetting(overrideKey) as boolean) ?? false : false;
-		const initialSize = sfApi ? (sfApi.getLinkedSetting(sizeKey) as number) ?? 1 : 1;
+		if (!sfApi) return;
+
+		const initialOverride = (sfApi.getLinkedSetting(overrideKey) as boolean) ?? false;
+		const initialSize = (sfApi.getLinkedSetting(sizeKey) as number) ?? 1;
 
 		renderToggleWithRevealCard(
 			body,
 			label,
 			initialOverride,
 			(value) => {
-				if (sfApi) void sfApi.updateLinkedSetting(overrideKey, value);
+				void sfApi.updateLinkedSetting(overrideKey, value);
 			},
 			(card) => {
 				let sliderSetting!: Setting;
@@ -245,12 +247,9 @@ export class TextStyleModal extends Modal {
 							.setLimits(min, max, 0.1)
 							.setValue(initialSize)
 							.onChange((value) => {
-								if (sfApi) void sfApi.updateLinkedSetting(sizeKey, value).then(() => restyle());
+								void sfApi.updateLinkedSetting(sizeKey, value).then(() => restyle());
 							}),
 					);
-					if (!sfApi) {
-						setting.setDesc("storyForge not found — size controls unavailable.");
-					}
 				});
 				return sliderSetting;
 			},
