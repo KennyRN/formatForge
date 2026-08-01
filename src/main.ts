@@ -221,15 +221,22 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 		if (tryConnect()) return;
 
-		// timelineForge may finish loading after us — retry briefly.
+		// timelineForge may finish loading after us — keep retrying for a while.
 		let attempts = 0;
 		const handle = window.setInterval(() => {
 			attempts += 1;
-			if (tryConnect() || attempts >= 40) {
+			if (tryConnect() || attempts >= 120) {
 				window.clearInterval(handle);
 			}
-		}, 250);
+		}, 500);
 		this.registerInterval(handle);
+
+		// Also retry when the workspace settles (plugin enable / layout).
+		this.registerEvent(
+			this.app.workspace.on("layout-change", () => {
+				tryConnect();
+			}),
+		);
 	}
 
 	private addCommands(sfApi: SfFormattingApi | null): void {
