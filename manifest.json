@@ -1,0 +1,9 @@
+{
+	"id": "formatforge",
+	"name": "formatForge",
+	"version": "0.1.0",
+	"minAppVersion": "1.13.0",
+	"description": "Typography companion for storyForge — owns editor body/heading colours, fonts, dividers, and the full formatting UI.",
+	"author": "volcanicMole",
+	"isDesktopOnly": true
+}

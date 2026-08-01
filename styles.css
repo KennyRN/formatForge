@@ -1,0 +1,249 @@
+/* ── formatForge styles ── */
+
+/* Needed for small-caps labels in font settings */
+.sf-small-caps-label {
+	font-variant: small-caps;
+}
+
+/* ── Shared row/swatch primitives ──────────────────────────────────────── */
+
+.sf-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 6px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.sf-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* ── Colour swatch button ────────────────────────────────────────────── */
+
+.sf-color-swatch-btn {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+/* ── Visibility helpers ────────────────────────────────────────────────── */
+
+.sf-settings-hidden:not(#storyforge-specificity-boost) {
+	display: none;
+}
+
+/* ── Settings tab spacing ──────────────────────────────────────────────── */
+
+.sf-settings-tab > .setting-item + .setting-group,
+.sf-settings-tab > .setting-item + .setting-item {
+	margin-top: var(--size-4-6);
+}
+
+/* ── Palette picker modal ──────────────────────────────────────────────── */
+
+.sf-palette-picker-modal {
+	padding: 16px;
+}
+
+.sf-palette-picker-modal h2 {
+	margin: 0 0 12px;
+}
+
+.sf-palette-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.sf-palette-row {
+	cursor: pointer;
+}
+
+.sf-palette-swatch {
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.sf-palette-name {
+	flex: 1;
+}
+
+.sf-palette-hex {
+	flex-shrink: 0;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+/* ── Text Style / UI Formatting modal (tabbed) ─────────────────────────── */
+
+.modal.sf-text-style-modal,
+.modal.sf-ui-formatting-modal {
+	width: 560px;
+	height: 760px;
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+}
+
+.sf-text-style-modal,
+.sf-ui-formatting-modal {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	padding: 16px;
+	min-height: 0;
+	min-width: 0;
+}
+
+.sf-text-style-tab-bar {
+	display: flex;
+	flex-direction: row;
+	gap: 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+	box-sizing: border-box;
+}
+
+.sf-text-style-tab-btn {
+	appearance: none;
+	border: none;
+	background: transparent;
+	padding: var(--size-4-3) var(--size-4-4);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	cursor: pointer;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+}
+
+.sf-text-style-tab-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.sf-text-style-tab-btn.is-active {
+	color: var(--text-accent);
+	border-bottom-color: var(--interactive-accent);
+}
+
+.sf-text-style-tab-body-wrapper {
+	flex: 1;
+	min-height: 0;
+	height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	box-sizing: border-box;
+}
+
+.sf-text-style-tab-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-6);
+	box-sizing: border-box;
+}
+
+.sf-text-style-tab-body > .setting-item,
+.sf-text-style-tab-body > .setting-group {
+	margin-bottom: 0;
+}
+
+.sf-text-style-tab-body > .setting-item + .setting-group,
+.sf-text-style-tab-body > .setting-item + .setting-item {
+	margin-top: var(--size-4-6);
+}
+
+/* ── Settings tab notices ──────────────────────────────────────────────── */
+
+.ff-settings-description,
+.ff-no-sf-notice {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-top: 0;
+	margin-bottom: var(--size-4-4);
+}
+
+.ff-no-sf-notice {
+	color: var(--text-warning, var(--color-orange));
+}
+
+/* ── Font picker modal ─────────────────────────────────────────────────── */
+
+.modal.ff-font-picker-modal {
+	width: min(640px, 92vw);
+	max-height: 80vh;
+}
+
+.ff-font-picker-modal {
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.ff-font-picker-modal h2 {
+	margin: 0 0 12px;
+	flex-shrink: 0;
+}
+
+.ff-font-picker-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	overflow-y: auto;
+	min-height: 0;
+	max-height: 60vh;
+}
+
+.ff-font-picker-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.ff-font-picker-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.ff-font-picker-row.is-selected {
+	background: var(--background-modifier-hover);
+	outline: 1px solid var(--interactive-accent);
+}
+
+.ff-font-picker-previews {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.75em 1.25em;
+	line-height: 1.2;
+}
+
+.ff-font-picker-sample {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
+	color: var(--text-normal);
+}
+
+.ff-font-picker-select {
+	flex-shrink: 0;
+	margin-inline-start: auto;
+}
+
