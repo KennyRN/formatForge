@@ -1,7 +1,6 @@
 import { App, Modal } from "obsidian";
 import {
 	PaletteColor,
-	PaletteName,
 	resolvePaletteColors,
 	resolvePaletteVariant,
 } from "../colorPalettes";
@@ -13,7 +12,7 @@ import {
 export class PalettePickerModal extends Modal {
 	constructor(
 		app: App,
-		private paletteName: PaletteName,
+		private paletteName: string,
 		private variantName: string,
 		private customPaletteColors: PaletteColor[],
 		private onPick: (hex: string) => void | Promise<void>,

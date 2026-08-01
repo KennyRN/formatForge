@@ -6,9 +6,6 @@ import { bindColorSwatchButton, bindExclusivePair, renderCustomFontCard, renderT
 const EDITOR_SCROLLBAR_THICKNESS_ORDER = ["thin", "medium", "thick"] as const;
 const EDITOR_SCROLLBAR_THICKNESS_LABELS = ["Thin", "Medium", "Thick"];
 
-type CyclingGuideInterval = "short" | "medium" | "large";
-type HeadingDividerThickness = "thin" | "medium" | "thick" | "extra-thick";
-type CodexFolderIndicatorThickness = "none" | "thin" | "medium" | "thick";
 type EditorScrollbarThickness = "thin" | "medium" | "thick";
 
 /**
@@ -19,7 +16,7 @@ class SfLinkedSettingsAdapter implements FontCardHost {
 	constructor(private readonly sfApi: SfFormattingApi) {}
 
 	getSettings(): Record<string, unknown> {
-		return this.sfApi.getLinkedSettings() as Record<string, unknown>;
+		return this.sfApi.getLinkedSettings();
 	}
 
 	async updateSetting(key: string, value: unknown): Promise<void> {
@@ -225,7 +222,7 @@ export class UiFormattingModal extends Modal {
 					.addOption("thick", "Thick")
 					.addOption("extra-thick", "Extra thick")
 					.setValue(s.cyclingGuideThickness as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideThickness", value as HeadingDividerThickness)),
+					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideThickness", value)),
 			);
 		});
 
@@ -238,7 +235,7 @@ export class UiFormattingModal extends Modal {
 					.addOption("medium", "Medium")
 					.addOption("large", "Large")
 					.setValue(s.cyclingGuideFlagSize as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideFlagSize", value as "small" | "medium" | "large")),
+					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideFlagSize", value)),
 			);
 		});
 
@@ -264,7 +261,7 @@ export class UiFormattingModal extends Modal {
 					.addOption("medium", "Medium")
 					.addOption("large", "Long")
 					.setValue(s.cyclingGuideInterval as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideInterval", value as CyclingGuideInterval)),
+					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideInterval", value)),
 			);
 		});
 
@@ -697,7 +694,7 @@ export class UiFormattingModal extends Modal {
 							.addOption("medium", "Medium")
 							.addOption("thick", "Thick")
 							.setValue(s.codexFolderIndicatorThickness as string)
-							.onChange((value) => void sfApi.updateLinkedSetting("codexFolderIndicatorThickness", value as CodexFolderIndicatorThickness)),
+							.onChange((value) => void sfApi.updateLinkedSetting("codexFolderIndicatorThickness", value)),
 					);
 			});
 

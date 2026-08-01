@@ -1,8 +1,23 @@
-import { App, PluginSettingTab, SettingGroup } from "obsidian";
+import { App, PluginSettingTab, type SettingDefinitionItem } from "obsidian";
 import type FormatForgePlugin from "../main";
 import type { SfFormattingApi } from "../storyforgeBridge";
-import { PALETTE_NAMES, resolvePaletteVariant, type PaletteName } from "../colorPalettes";
+import {
+	COLOR_PALETTES,
+	defaultVariantName,
+	PALETTE_NAMES,
+	type PresetPaletteName,
+} from "../colorPalettes";
+import { TextStyleModal } from "./TextStyleModal";
+import { UiFormattingModal } from "./UiFormattingModal";
 
+function isPresetPaletteName(name: string): name is PresetPaletteName {
+	return name in COLOR_PALETTES;
+}
+
+/**
+ * Declarative settings for Obsidian 1.13+ (`minAppVersion`).
+ * Palette controls are bridged to storyForge via {@link SfFormattingApi}.
+ */
 export class FormatForgeSettingsTab extends PluginSettingTab {
 	private plugin: FormatForgePlugin;
 	private sfApi: SfFormattingApi | null;
@@ -13,116 +28,113 @@ export class FormatForgeSettingsTab extends PluginSettingTab {
 		this.sfApi = sfApi;
 	}
 
-	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
-		containerEl.addClass("sf-settings-tab");
-
-		containerEl.createEl("p", {
-			text: "formatForge manages the typography settings for storyForge — editor colours, fonts, heading dividers, and the full formatting interface. Requires storyForge.",
-			cls: "ff-settings-description",
-		});
-
-		if (!this.sfApi) {
-			containerEl.createEl("p", {
-				text: "storyForge is not detected. Install and enable storyForge, then reload Obsidian.",
-				cls: "ff-no-sf-notice",
-			});
+	getControlValue(key: string): unknown {
+		if (key === "colorPaletteName") {
+			return this.sfApi?.getPalette().name ?? "Custom";
 		}
-
-		// ── Formatting modals ──────────────────────────────────────
-		new SettingGroup(containerEl)
-			.setHeading("Formatting")
-			.addSetting((s) => {
-				s.setName("Text styling")
-					.setDesc("Editor body and heading colours, fonts, dividers, and font sizes.")
-					.addButton((btn) =>
-						btn.setButtonText("Open").setCta().onClick(() => {
-							void import("./TextStyleModal").then(({ TextStyleModal }) => {
-								new TextStyleModal(this.app, this.plugin, this.sfApi).open();
-							});
-						}),
-					);
-			})
-			.addSetting((s) => {
-				s.setName("storyForge interface")
-					.setDesc("storyForge panel chrome: library, unplaced, codex, cycling guide, highlights, scrollbar.")
-					.addButton((btn) =>
-						btn.setButtonText("Open").onClick(() => {
-							void import("./UiFormattingModal").then(({ UiFormattingModal }) => {
-								new UiFormattingModal(this.app, this.plugin, this.sfApi).open();
-							});
-						}),
-					);
-			});
-
-		// ── Palette ────────────────────────────────────────────────
-		const sfApi = this.sfApi;
-		if (sfApi) {
-			this.renderPaletteSection(containerEl, sfApi);
+		if (key === "colorPaletteVariant") {
+			return this.sfApi?.getPalette().variant ?? "";
 		}
+		return super.getControlValue(key);
 	}
 
-	private renderPaletteSection(containerEl: HTMLElement, sfApi: SfFormattingApi): void {
-		const palette = sfApi.getPalette();
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		if (!this.sfApi) return;
 
-		const group = new SettingGroup(containerEl);
-		group.setHeading("Colour palette");
-
-		// Palette name
-		group.addSetting((s) => {
-			s.setName("Palette")
-				.setDesc("Base palette for colour pickers across all storyForge formatting.")
-				.addDropdown((dropdown) => {
-					for (const name of PALETTE_NAMES) {
-						dropdown.addOption(name, name);
-					}
-					dropdown.setValue(palette.name);
-					dropdown.onChange((value) => {
-						void sfApi.updatePalette({ name: value }).then(() => {
-							// Refresh the whole tab so variant dropdown updates
-							void Promise.resolve().then(() => this.display());
-						});
-					});
-				});
-		});
-
-		// Palette variant (only for preset palettes)
-		if (palette.name !== "Custom") {
-			const variants = this.getVariantsForPalette(palette.name as PaletteName);
-			if (variants.length > 0) {
-				group.addSetting((s) => {
-					s.setName("Variant")
-						.setDesc("Light or dark variant of the selected palette.")
-						.addDropdown((dropdown) => {
-							for (const v of variants) {
-								dropdown.addOption(v.name, `${v.name} (${v.appearance})`);
-							}
-							const currentVariant = palette.variant;
-							dropdown.setValue(variants.some((v) => v.name === currentVariant) ? currentVariant : variants[0].name);
-							dropdown.onChange((value) => {
-								void sfApi.updatePalette({ variant: value });
-							});
-						});
+		if (key === "colorPaletteName") {
+			const name = String(value);
+			await this.sfApi.updatePalette({ name });
+			if (isPresetPaletteName(name)) {
+				const appearance = document.body.classList.contains("theme-dark") ? "dark" : "light";
+				await this.sfApi.updatePalette({
+					variant: defaultVariantName(COLOR_PALETTES[name], appearance),
 				});
 			}
+			// Variant dropdown options depend on the selected palette.
+			this.update();
+			return;
 		}
+
+		if (key === "colorPaletteVariant") {
+			await this.sfApi.updatePalette({ variant: String(value) });
+			return;
+		}
+
+		await super.setControlValue(key, value);
 	}
 
-	private getVariantsForPalette(paletteName: PaletteName): Array<{ name: string; appearance: string }> {
-		if (paletteName === "Custom") return [];
-		const candidateNames = [
-			"Light", "Dark", "Latte", "Frappé", "Macchiato", "Mocha",
-			"Dawn", "Moon", "Rise",
-			"Dark Hard", "Dark Medium", "Dark Soft",
-			"Light Hard", "Light Medium", "Light Soft",
-			"Dark (Original)", "Light (Original)",
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		const palette = this.sfApi?.getPalette();
+		const paletteOptions = Object.fromEntries(PALETTE_NAMES.map((name) => [name, name]));
+		const selectedName = palette?.name ?? "";
+		const variantOptions =
+			isPresetPaletteName(selectedName)
+				? Object.fromEntries(
+						COLOR_PALETTES[selectedName].map((v) => [v.name, `${v.name} (${v.appearance})`]),
+					)
+				: {};
+
+		return [
+			{
+				name: "About formatForge",
+				desc: "formatForge manages the typography settings for storyForge — editor colours, fonts, heading dividers, and the full formatting interface. Requires storyForge.",
+				searchable: false,
+			},
+			{
+				name: "storyForge not detected",
+				desc: "Install and enable storyForge, then reload Obsidian.",
+				visible: () => !this.sfApi,
+				searchable: false,
+			},
+			{
+				type: "group",
+				heading: "Formatting",
+				items: [
+					{
+						name: "Text styling",
+						desc: "Editor body and heading colours, fonts, dividers, and font sizes.",
+						action: () => {
+							new TextStyleModal(this.app, this.plugin, this.sfApi).open();
+						},
+					},
+					{
+						name: "storyForge interface",
+						desc: "storyForge panel chrome: library, unplaced, codex, cycling guide, highlights, scrollbar.",
+						action: () => {
+							new UiFormattingModal(this.app, this.plugin, this.sfApi).open();
+						},
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Colour palette",
+				visible: () => !!this.sfApi,
+				items: [
+					{
+						name: "Palette",
+						desc: "Base palette for colour pickers across all storyForge formatting.",
+						control: {
+							type: "dropdown",
+							key: "colorPaletteName",
+							options: paletteOptions,
+						},
+					},
+					{
+						name: "Variant",
+						desc: "Light or dark variant of the selected palette.",
+						visible: () => {
+							const name = this.sfApi?.getPalette().name ?? "";
+							return isPresetPaletteName(name) && COLOR_PALETTES[name].length > 0;
+						},
+						control: {
+							type: "dropdown",
+							key: "colorPaletteVariant",
+							options: variantOptions,
+						},
+					},
+				],
+			},
 		];
-		const variants: Array<{ name: string; appearance: string }> = [];
-		for (const n of candidateNames) {
-			const v = resolvePaletteVariant(paletteName, n);
-			if (v) variants.push({ name: v.name, appearance: v.appearance });
-		}
-		return variants;
 	}
 }

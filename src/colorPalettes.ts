@@ -963,7 +963,7 @@ export function defaultVariantName(variants: PaletteVariant[], appearance: Palet
 
 /** Resolves which named variant to use for a preset (stale-value fallback lives only here). */
 export function resolvePaletteVariant(
-	paletteName: PaletteName,
+	paletteName: string,
 	variantName: string | undefined,
 ): PaletteVariant | null {
 	const preset = normalizePresetName(paletteName);
@@ -979,7 +979,7 @@ export function resolvePaletteVariant(
 
 /** Resolves the colour list to show in the picker for the plugin's current palette selection. */
 export function resolvePaletteColors(
-	paletteName: PaletteName,
+	paletteName: string,
 	variantName: string | undefined,
 	customPaletteColors: PaletteColor[],
 ): PaletteColor[] {

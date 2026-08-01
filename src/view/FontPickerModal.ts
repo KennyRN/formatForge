@@ -51,18 +51,23 @@ export class FontPickerModal extends Modal {
 		}
 
 		const previews = row.createDiv({ cls: "ff-font-picker-previews" });
-		previews.style.fontSize = `${sizeEm}em`;
+		previews.setCssStyles({ fontSize: `${sizeEm}em` });
 
 		const weights = previewWeightsFor(font);
 		for (const weight of weights) {
 			const sample = previews.createSpan({ cls: "ff-font-picker-sample", text: font.label });
-			sample.style.fontFamily = `"${font.cssFontFamily}", var(--font-text)`;
 			if (font.weightMin === font.weightMax) {
-				sample.style.fontWeight = String(font.weightMin);
-				sample.style.fontVariationSettings = "normal";
+				sample.setCssStyles({
+					fontFamily: `"${font.cssFontFamily}", var(--font-text)`,
+					fontWeight: String(font.weightMin),
+					fontVariationSettings: "normal",
+				});
 			} else {
-				sample.style.fontWeight = String(weight);
-				sample.style.fontVariationSettings = `"wght" ${weight}`;
+				sample.setCssStyles({
+					fontFamily: `"${font.cssFontFamily}", var(--font-text)`,
+					fontWeight: String(weight),
+					fontVariationSettings: `"wght" ${weight}`,
+				});
 			}
 			sample.setAttr("title", weightPreviewLabel(weight, font));
 		}

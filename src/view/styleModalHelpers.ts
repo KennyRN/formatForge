@@ -52,7 +52,7 @@ export function openColorSwatchPicker(
 ): void {
 	const p = getPalette();
 	void import("./PalettePickerModal").then(({ PalettePickerModal }) => {
-		new PalettePickerModal(app, p.name as never, p.variant, p.customColors as never, (hex) =>
+		new PalettePickerModal(app, p.name, p.variant, p.customColors, (hex) =>
 			applyColorPick(hex, paint, onPick),
 		).open();
 	});
