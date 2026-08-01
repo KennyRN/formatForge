@@ -1,6 +1,7 @@
 import { Notice, Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, HEADING_DIVIDER_WIDTH_PX, type FormatForgeSettings } from "./settings";
 import { getSfFormattingApi, type SfFormattingApi, type SfPaletteColor, type SfPaletteName } from "./storyforgeBridge";
+import { getTfFormattingApi, type TfFormattingApi } from "./timelineForgeBridge";
 import { CUSTOM_FONTS, registerCustomFontFaces, resolveCustomFontFamilyParts } from "./fonts";
 import { FormatForgeSettingsTab } from "./view/FormatForgeSettingsTab";
 import type { FontCardHost } from "./view/styleModalHelpers";
@@ -8,19 +9,27 @@ import type { FontCardHost } from "./view/styleModalHelpers";
 export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	private ffSettings: FormatForgeSettings = { ...DEFAULT_SETTINGS };
 	private sfApi: SfFormattingApi | null = null;
+	private tfApi: TfFormattingApi | null = null;
 	private unregisterCompanion: (() => void) | null = null;
+	private unregisterTimelineCompanion: (() => void) | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
-		// Wait for layout to be ready before trying to connect to storyForge
-		this.app.workspace.onLayoutReady(() => this.connectToStoryForge());
+		// Wait for layout to be ready before trying to connect to host plugins
+		this.app.workspace.onLayoutReady(() => {
+			this.connectToStoryForge();
+			this.connectToTimelineForge();
+		});
 	}
 
 	onunload(): void {
 		this.unregisterCompanion?.();
 		this.unregisterCompanion = null;
+		this.unregisterTimelineCompanion?.();
+		this.unregisterTimelineCompanion = null;
 		this.sfApi = null;
+		this.tfApi = null;
 	}
 
 	// ── FontCardHost interface ─────────────────────────────────────────────
@@ -164,6 +173,63 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 		this.addSettingTab(new FormatForgeSettingsTab(this.app, this, sfApi));
 		this.addCommands(sfApi);
+	}
+
+	// ── timelineForge connection ───────────────────────────────────────────
+
+	private connectToTimelineForge(): void {
+		const tryConnect = (): boolean => {
+			if (this.unregisterTimelineCompanion) return true;
+			const tfApi = getTfFormattingApi(this.app);
+			if (!tfApi) return false;
+
+			this.tfApi = tfApi;
+			this.unregisterTimelineCompanion = tfApi.registerCompanion({
+				pluginId: "formatforge",
+				version: 1,
+				resolveFont: (familyId, weight) => {
+					const font = CUSTOM_FONTS.find((f) => f.id === familyId);
+					if (!font) return null;
+					return resolveCustomFontFamilyParts(font, weight);
+				},
+				registerFacesForDocument: (doc) => registerCustomFontFaces(doc),
+				listFonts: () =>
+					CUSTOM_FONTS.map((f) => ({
+						id: f.id,
+						label: f.label,
+						weightMin: f.weightMin,
+						weightMax: f.weightMax,
+					})),
+				openFontPicker: (opts) => {
+					void import("./view/FontPickerModal").then(({ FontPickerModal }) => {
+						new FontPickerModal(
+							this.app,
+							opts.currentFamilyId,
+							opts.previewFontSizeEm,
+							(id) => opts.onPick(id),
+						).open();
+					});
+				},
+				onHostStylesApplied: () => {
+					registerCustomFontFaces(document);
+				},
+			});
+
+			registerCustomFontFaces(document);
+			return true;
+		};
+
+		if (tryConnect()) return;
+
+		// timelineForge may finish loading after us — retry briefly.
+		let attempts = 0;
+		const handle = window.setInterval(() => {
+			attempts += 1;
+			if (tryConnect() || attempts >= 40) {
+				window.clearInterval(handle);
+			}
+		}, 250);
+		this.registerInterval(handle);
 	}
 
 	private addCommands(sfApi: SfFormattingApi | null): void {

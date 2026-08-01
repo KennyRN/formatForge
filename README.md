@@ -45,6 +45,25 @@ storyForge will then:
 - Call `onHostStylesApplied` after each SF restyle so FF can refresh editor CSS vars.
 - Call `resolveFont` / `registerFacesForDocument` when it needs font information for SF panel chrome.
 
+## How it registers with timelineForge
+
+formatForge also soft-depends on [timelineForge](https://github.com/KennyRN/timelineForge).
+Font controls for the timeline rail live **inside** timelineForge's Timeline
+appearance modal (not a separate formatForge modal). On load:
+
+```ts
+app.plugins.getPlugin("timelineforge")?.api.formatting.registerCompanion({
+  pluginId: "formatforge",
+  version: 1,
+  resolveFont: (familyId, weight) => resolveCustomFontFamilyParts(font, weight),
+  registerFacesForDocument: (doc) => registerCustomFontFaces(doc),
+  listFonts: () => CUSTOM_FONTS.map(...),
+  openFontPicker: (opts) => new FontPickerModal(...).open(),
+});
+```
+
+See `docs/timelineforge-formatting-api.md`.
+
 ## Settings storage
 
 | Setting group | Persisted in |
@@ -53,3 +72,4 @@ storyForge will then:
 | Font sizes (body + H1–H6) | `storyForge/data.json` (via linked settings API) |
 | Colour palette | `storyForge/data.json` (via `formatting.updatePalette`) |
 | storyForge panel chrome | `storyForge/data.json` (via `formatting.updateLinkedSetting`) |
+| Timeline rail colours + typography | timelineForge `_tf-backstage/folders/*.md` |
