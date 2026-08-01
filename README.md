@@ -1,3 +1,5 @@
+A simple to use obsidian plugin which adds simple colour selectors and inbuilt fonts
+
 # formatForge
 
 **formatForge** is a companion plugin for [storyForge](https://github.com/volcanicMole/storyforge) that owns all editor typography settings.
