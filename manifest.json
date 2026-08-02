@@ -3,7 +3,7 @@
 	"name": "formatForge",
 	"version": "0.1.1",
 	"minAppVersion": "1.13.0",
-	"description": "Simple typography and colour formatting for Obsidian — standalone, and for the Forge plugin family.",
+	"description": "Simple typography and colour formatting — standalone, and for the Forge plugin family.",
 	"author": "volcanicMole",
 	"isDesktopOnly": true
 }

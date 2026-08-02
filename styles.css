@@ -340,7 +340,7 @@
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
 	align-items: baseline;
-	column-gap: 1.25em;
+	gap: 1.25em;
 	padding: 12px 10px;
 	border-radius: 6px;
 	cursor: pointer;

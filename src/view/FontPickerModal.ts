@@ -1,6 +1,6 @@
 import { App, Modal } from "obsidian";
 import { CUSTOM_FONTS, type CustomFontEntry } from "../fonts";
-import { previewWeightsFor, weightNameFor, weightPreviewLabel } from "./fontPickerUtils";
+import { weightNameFor, weightPreviewLabel } from "./fontPickerUtils";
 
 export type FontPickerSelectHandler = (fontId: string) => void | Promise<void>;
 
@@ -102,4 +102,4 @@ export class FontPickerModal extends Modal {
 	}
 }
 
-export { previewWeightsFor, weightNameFor } from "./fontPickerUtils";
+export { weightNameFor } from "./fontPickerUtils";
