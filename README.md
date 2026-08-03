@@ -2,7 +2,7 @@
 
 **formatForge** adds simple typography and colour formatting to Obsidian — body and heading colours, fonts, dividers, and related styling UI.
 
-It works **on its own** for any vault that wants clearer note formatting. It also soft-integrates with the **Forge plugin family** (storyForge, timelineForge, and others that adopt the formatting API) so those plugins can share fonts, palettes, and chrome styling through formatForge.
+It works **on its own** for any vault that wants clearer note formatting. It also soft-integrates with the **Forge plugin family** (storyForge, timelineForge, and others that adopt the formatting API) so those plugins can share fonts, palettes, and styling through formatForge.
 
 ## Requirements
 
