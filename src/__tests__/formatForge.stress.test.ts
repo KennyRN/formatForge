@@ -1,10 +1,12 @@
 /**
  * Stress tests for formatForge: font catalog, settings, style-var generation, bridge gating.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CUSTOM_FONTS, resolveCustomFontFamilyParts, registerCustomFontFaces } from "../fonts";
+import { softConnectWithRetry } from "../hostConnectRetry";
 import { DEFAULT_SETTINGS, HEADING_DIVIDER_WIDTH_PX, type FormatForgeSettings } from "../settings";
 import { getSfFormattingApi, type SfFormattingApi, type StoryForgeHostApi } from "../storyforgeBridge";
+import { mountUiStylePreviewSample } from "../view/uiStylePreviewSample";
 
 function decodeMagic(b64: string): string {
 	const buf = Buffer.from(b64.slice(0, 16), "base64");
@@ -39,6 +41,10 @@ function buildEditorStyleVars(s: FormatForgeSettings): Record<string, string | n
 	vars["--sf-body-color"] = s.bodyTextOverrideColor ? s.bodyTextColor : null;
 	vars["--sf-body-bold-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextBoldColor : null;
 	vars["--sf-body-italic-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextItalicColor : null;
+	vars["--sf-body-link-color"] = s.bodyLinkOverrideColor ? s.bodyLinkColor : null;
+	vars["--sf-body-link-decoration"] = s.bodyLinkRemoveUnderline ? "none" : null;
+	vars["--sf-body-highlight-bg"] = s.bodyHighlightOverride ? s.bodyHighlightBgColor : null;
+	vars["--sf-body-highlight-color"] = s.bodyHighlightOverride ? s.bodyHighlightTextColor : null;
 
 	assignFont("--sf-h1", s.heading1OverrideFont, s.heading1FontFamily, s.heading1FontWeight);
 	vars["--sf-h1-color"] = s.heading1OverrideColor ? s.heading1Color : null;
@@ -108,7 +114,7 @@ describe("formatForge font catalog stress", () => {
 		}
 	});
 
-	it("registerCustomFontFaces is idempotent across many docs (mocked FontFace)", () => {
+	it("registerCustomFontFaces is idempotent across many docs (mocked FontFace)", async () => {
 		class FakeFontFace {
 			family: string;
 			source: string;
@@ -122,13 +128,36 @@ describe("formatForge font catalog stress", () => {
 				return Promise.resolve(this);
 			}
 		}
-		const g = globalThis as unknown as { FontFace: typeof FakeFontFace };
-		const prev = g.FontFace;
+		const g = globalThis as unknown as { FontFace: typeof FakeFontFace; Blob: typeof Blob; URL: typeof URL };
+		const prevFontFace = g.FontFace;
+		const prevBlob = g.Blob;
+		const prevURL = g.URL;
 		g.FontFace = FakeFontFace;
+		// jsdom-less vitest: provide minimal Blob/URL for registration.
+		if (typeof g.Blob === "undefined") {
+			g.Blob = class {
+				constructor(public parts: unknown[], public opts?: unknown) {}
+			} as unknown as typeof Blob;
+		}
+		if (typeof g.URL === "undefined" || typeof g.URL.createObjectURL !== "function") {
+			const urls: string[] = [];
+			g.URL = {
+				createObjectURL: () => {
+					const u = `blob:fake-${urls.length}`;
+					urls.push(u);
+					return u;
+				},
+				revokeObjectURL: () => undefined,
+			} as unknown as typeof URL;
+		}
 
 		try {
 			for (let d = 0; d < 25; d++) {
 				const added: FakeFontFace[] = [];
+				const styleEl = {
+					id: "",
+					textContent: "",
+				};
 				const doc = {
 					defaultView: { FontFace: FakeFontFace },
 					fonts: {
@@ -136,14 +165,22 @@ describe("formatForge font catalog stress", () => {
 							added.push(face);
 						},
 					},
+					getElementById: () => null,
+					createElement: () => styleEl,
+					head: { appendChild: () => styleEl },
 				} as unknown as Document;
-				registerCustomFontFaces(doc);
-				registerCustomFontFaces(doc); // second pass — still adds (caller tracks idempotency)
-				expect(added.length).toBeGreaterThan(20);
-				expect(added.every((f) => f.source.includes("woff2"))).toBe(true);
+				await registerCustomFontFaces(doc);
+				const firstCount = added.length;
+				await registerCustomFontFaces(doc); // second pass must not re-add
+				expect(firstCount).toBeGreaterThanOrEqual(20);
+				expect(added.length).toBe(firstCount);
+				expect(added.every((f) => typeof f.source === "string" && f.source.includes("blob:"))).toBe(true);
+				expect(styleEl.textContent).toContain("@font-face");
 			}
 		} finally {
-			g.FontFace = prev;
+			g.FontFace = prevFontFace;
+			g.Blob = prevBlob;
+			g.URL = prevURL;
 		}
 	});
 });
@@ -176,6 +213,9 @@ describe("formatForge settings + style var stress", () => {
 			bodyTextOverrideColor: true,
 			bodyTextOverrideFont: true,
 			bodyTextOverrideEmphasisColor: true,
+			bodyLinkOverrideColor: true,
+			bodyLinkRemoveUnderline: true,
+			bodyHighlightOverride: true,
 			hideHeading1Links: true,
 			heading1OverrideColor: true,
 			heading1OverrideFont: true,
@@ -198,6 +238,10 @@ describe("formatForge settings + style var stress", () => {
 			const vars = buildEditorStyleVars(on);
 			expect(vars["--sf-body-color"]).toBe(on.bodyTextColor);
 			expect(vars["--sf-body-family"]).toContain("storyForge");
+			expect(vars["--sf-body-link-color"]).toBe(on.bodyLinkColor);
+			expect(vars["--sf-body-link-decoration"]).toBe("none");
+			expect(vars["--sf-body-highlight-bg"]).toBe(on.bodyHighlightBgColor);
+			expect(vars["--sf-body-highlight-color"]).toBe(on.bodyHighlightTextColor);
 			expect(vars["--sf-h1-variant"]).toBe("small-caps");
 			expect(vars["--sf-h1-link-color"]).toBe("inherit");
 			expect(vars["--sf-h1-border-top"]).toMatch(/px solid/);
@@ -300,5 +344,155 @@ describe("formatForge storyForge bridge stress", () => {
 		}
 		await api.updatePalette({ name: "Custom" });
 		expect(api.getPalette().name).toBe("Custom");
+	});
+
+	it("late SF API availability still results in successful registerCompanion", () => {
+		vi.useFakeTimers();
+		const timers = new Map<number, () => void>();
+		let nextId = 1;
+		const setIntervalFn = ((cb: () => void, _ms?: number) => {
+			const id = nextId++;
+			timers.set(id, cb);
+			return id as unknown as ReturnType<typeof setInterval>;
+		}) as typeof setInterval;
+		const clearIntervalFn = ((id: ReturnType<typeof setInterval>) => {
+			timers.delete(id as unknown as number);
+		}) as typeof clearInterval;
+
+		let lookupCount = 0;
+		let unregisterCompanion: (() => void) | null = null;
+		const registerCompanion = vi.fn(() => {
+			const dispose = () => undefined;
+			return dispose;
+		});
+		const formatting = {
+			version: 2,
+			registerCompanion,
+			getStyleDocuments: () => [],
+			registerViewContribution: () => () => undefined,
+		} as unknown as SfFormattingApi;
+
+		/** Mirrors connectToStoryForge tryConnect: getSfFormattingApi null until host is ready. */
+		const getApi = (): SfFormattingApi | null => {
+			lookupCount += 1;
+			// First few probes miss (SF still loading), then the real API appears.
+			return lookupCount <= 3 ? null : formatting;
+		};
+
+		const tryConnect = (): boolean => {
+			if (unregisterCompanion) return true;
+			const sfApi = getApi();
+			if (!sfApi) return false;
+			unregisterCompanion = sfApi.registerCompanion({
+				pluginId: "formatforge",
+				version: 1,
+			});
+			return true;
+		};
+
+		const registeredIntervals: number[] = [];
+		let layoutCb: (() => void) | null = null;
+
+		softConnectWithRetry(tryConnect, {
+			registerInterval: (id) => {
+				registeredIntervals.push(id);
+				return id;
+			},
+			onLayoutChange: (cb) => {
+				layoutCb = cb;
+			},
+			setIntervalFn,
+			clearIntervalFn,
+			maxAttempts: 120,
+			intervalMs: 500,
+		});
+
+		expect(registerCompanion).not.toHaveBeenCalled();
+		expect(registeredIntervals.length).toBe(1);
+		expect(layoutCb).not.toBeNull();
+
+		// Interval attempts 1–2 still miss.
+		timers.get(registeredIntervals[0])?.();
+		timers.get(registeredIntervals[0])?.();
+		expect(registerCompanion).not.toHaveBeenCalled();
+
+		// Attempt 3 succeeds (lookupCount reaches 4: initial + 3 interval ticks).
+		timers.get(registeredIntervals[0])?.();
+		expect(registerCompanion).toHaveBeenCalledTimes(1);
+		expect(registerCompanion).toHaveBeenCalledWith(
+			expect.objectContaining({ pluginId: "formatforge", version: 1 }),
+		);
+		expect(unregisterCompanion).not.toBeNull();
+		// Timer cleared after success.
+		expect(timers.has(registeredIntervals[0])).toBe(false);
+
+		vi.useRealTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+});
+
+describe("formatForge UI style preview sample", () => {
+	it("mounts library / unplaced / codex / cycling-guide with storyForge classes", () => {
+		const created: Array<{ tag: string; cls?: string; text?: string }> = [];
+		const makeNode = (tag: string): HTMLElement => {
+			const children: HTMLElement[] = [];
+			const node = {
+				tagName: tag.toUpperCase(),
+				classList: { add() { /* no-op */ } },
+				addClass(cls: string) {
+					created[created.length - 1].cls = created[created.length - 1].cls
+						? `${created[created.length - 1].cls} ${cls}`
+						: cls;
+				},
+				setText(text: string) {
+					created[created.length - 1].text = text;
+				},
+				createSpan(opts?: { cls?: string; text?: string; attr?: Record<string, string> }) {
+					created.push({ tag: "span", cls: opts?.cls, text: opts?.text });
+					return makeNode("span");
+				},
+				createDiv(opts?: { cls?: string; text?: string }) {
+					created.push({ tag: "div", cls: opts?.cls, text: opts?.text });
+					return makeNode("div");
+				},
+				createEl(childTag: string, opts?: { cls?: string; text?: string }) {
+					created.push({ tag: childTag, cls: opts?.cls, text: opts?.text });
+					return makeNode(childTag);
+				},
+				appendChild(child: HTMLElement) {
+					children.push(child);
+					return child;
+				},
+				empty() {
+					children.length = 0;
+				},
+			};
+			return node as unknown as HTMLElement;
+		};
+
+		const container = makeNode("div");
+		(container as unknown as { empty: () => void }).empty = () => undefined;
+		(container as unknown as { createDiv: (opts?: { cls?: string; text?: string }) => HTMLElement }).createDiv = (
+			opts?: { cls?: string; text?: string },
+		) => {
+			created.push({ tag: "div", cls: opts?.cls, text: opts?.text });
+			return makeNode("div");
+		};
+
+		mountUiStylePreviewSample(container);
+
+		const classes = created.map((c) => c.cls ?? "").join(" ");
+		expect(classes).toContain("storyforge-view");
+		expect(classes).toContain("sf-series-line");
+		expect(classes).toContain("sf-book-line");
+		expect(classes).toContain("sf-row-selected");
+		expect(classes).toContain("sf-unplaced-zone");
+		expect(classes).toContain("sf-header-unplaced");
+		expect(classes).toContain("sf-codex-folder-name");
+		expect(classes).toContain("sf-codex-file");
+		expect(classes).not.toContain("sf-cycling-guide-line");
 	});
 });

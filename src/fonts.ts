@@ -1,5 +1,7 @@
 export interface CustomFontFace {
 	base64: string;
+	/** Filename under plugin `fonts/` — preferred load path on desktop. */
+	fileName: string;
 	format: "opentype" | "woff2" | "truetype";
 	style: "normal" | "italic";
 	/** Fixed weight for a static face (e.g. Courier Prime Bold = 700). When omitted, the face covers weightMin–weightMax. */
@@ -94,7 +96,7 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		label: "Alan Sans",
 		weightMin: 300,
 		weightMax: 900,
-		faces: [{ base64: ALAN_SANS_BASE64, format: "woff2", style: "normal" }],
+		faces: [{ base64: ALAN_SANS_BASE64, fileName: "AlanSans-VariableFont_wght.woff2", format: "woff2", style: "normal" }],
 	},
 	{
 		id: "caveat",
@@ -102,7 +104,7 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		label: "Caveat",
 		weightMin: 400,
 		weightMax: 700,
-		faces: [{ base64: CAVEAT_BASE64, format: "woff2", style: "normal" }],
+		faces: [{ base64: CAVEAT_BASE64, fileName: "Caveat-VariableFont_wght.woff2", format: "woff2", style: "normal" }],
 	},
 	{
 		id: "courier-prime",
@@ -111,10 +113,10 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		weightMin: 400,
 		weightMax: 400,
 		faces: [
-			{ base64: COURIER_PRIME_REGULAR_BASE64, format: "woff2", style: "normal", weight: 400 },
-			{ base64: COURIER_PRIME_BOLD_BASE64, format: "woff2", style: "normal", weight: 700 },
-			{ base64: COURIER_PRIME_ITALIC_BASE64, format: "woff2", style: "italic", weight: 400 },
-			{ base64: COURIER_PRIME_BOLD_ITALIC_BASE64, format: "woff2", style: "italic", weight: 700 },
+			{ base64: COURIER_PRIME_REGULAR_BASE64, fileName: "CourierPrime-Regular.woff2", format: "woff2", style: "normal", weight: 400 },
+			{ base64: COURIER_PRIME_BOLD_BASE64, fileName: "CourierPrime-Bold.woff2", format: "woff2", style: "normal", weight: 700 },
+			{ base64: COURIER_PRIME_ITALIC_BASE64, fileName: "CourierPrime-Italic.woff2", format: "woff2", style: "italic", weight: 400 },
+			{ base64: COURIER_PRIME_BOLD_ITALIC_BASE64, fileName: "CourierPrime-BoldItalic.woff2", format: "woff2", style: "italic", weight: 700 },
 		],
 	},
 	{
@@ -124,8 +126,8 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		weightMin: 100,
 		weightMax: 900,
 		faces: [
-			{ base64: EXO_2_ROMAN_BASE64, format: "woff2", style: "normal" },
-			{ base64: EXO_2_ITALIC_BASE64, format: "woff2", style: "italic" },
+			{ base64: EXO_2_ROMAN_BASE64, fileName: "Exo2-VariableFont_wght.woff2", format: "woff2", style: "normal" },
+			{ base64: EXO_2_ITALIC_BASE64, fileName: "Exo2-Italic-VariableFont_wght.woff2", format: "woff2", style: "italic" },
 		],
 	},
 	{
@@ -134,7 +136,7 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		label: "Fredoka",
 		weightMin: 300,
 		weightMax: 700,
-		faces: [{ base64: FREDOKA_BASE64, format: "woff2", style: "normal" }],
+		faces: [{ base64: FREDOKA_BASE64, fileName: "Fredoka-VariableFont_wdth,wght.woff2", format: "woff2", style: "normal" }],
 	},
 	{
 		id: "grenze",
@@ -143,8 +145,8 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		weightMin: 100,
 		weightMax: 900,
 		faces: [
-			{ base64: GRENZE_ROMAN_BASE64, format: "woff2", style: "normal" },
-			{ base64: GRENZE_ITALIC_BASE64, format: "woff2", style: "italic" },
+			{ base64: GRENZE_ROMAN_BASE64, fileName: "Grenze-VariableFont_wght.woff2", format: "woff2", style: "normal" },
+			{ base64: GRENZE_ITALIC_BASE64, fileName: "Grenze-Italic-VariableFont_wght.woff2", format: "woff2", style: "italic" },
 		],
 	},
 	{
@@ -154,8 +156,8 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		weightMin: 100,
 		weightMax: 700,
 		faces: [
-			{ base64: IBM_PLEX_SANS_VAR_ROMAN_BASE64, format: "woff2", style: "normal" },
-			{ base64: IBM_PLEX_SANS_VAR_ITALIC_BASE64, format: "woff2", style: "italic" },
+			{ base64: IBM_PLEX_SANS_VAR_ROMAN_BASE64, fileName: "IBM Plex Sans Var-Roman.woff2", format: "woff2", style: "normal" },
+			{ base64: IBM_PLEX_SANS_VAR_ITALIC_BASE64, fileName: "IBM Plex Sans Var-Italic.woff2", format: "woff2", style: "italic" },
 		],
 	},
 	{
@@ -165,8 +167,8 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		weightMin: 400,
 		weightMax: 700,
 		faces: [
-			{ base64: LIBRE_BASKERVILLE_ROMAN_BASE64, format: "woff2", style: "normal" },
-			{ base64: LIBRE_BASKERVILLE_ITALIC_BASE64, format: "woff2", style: "italic" },
+			{ base64: LIBRE_BASKERVILLE_ROMAN_BASE64, fileName: "LibreBaskerville-VariableFont_wght.woff2", format: "woff2", style: "normal" },
+			{ base64: LIBRE_BASKERVILLE_ITALIC_BASE64, fileName: "LibreBaskerville-Italic-VariableFont_wght.woff2", format: "woff2", style: "italic" },
 		],
 	},
 	{
@@ -176,8 +178,8 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		weightMin: 200,
 		weightMax: 900,
 		faces: [
-			{ base64: NUNITO_ROMAN_BASE64, format: "woff2", style: "normal" },
-			{ base64: NUNITO_ITALIC_BASE64, format: "woff2", style: "italic" },
+			{ base64: NUNITO_ROMAN_BASE64, fileName: "Nunito-VariableFont_wght.woff2", format: "woff2", style: "normal" },
+			{ base64: NUNITO_ITALIC_BASE64, fileName: "Nunito-Italic-VariableFont_wght.woff2", format: "woff2", style: "italic" },
 		],
 	},
 	{
@@ -186,7 +188,7 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		label: "Playpen Sans",
 		weightMin: 100,
 		weightMax: 800,
-		faces: [{ base64: PLAYPEN_SANS_BASE64, format: "woff2", style: "normal" }],
+		faces: [{ base64: PLAYPEN_SANS_BASE64, fileName: "PlaypenSans-VariableFont_wght.woff2", format: "woff2", style: "normal" }],
 	},
 	{
 		id: "sn-pro",
@@ -195,43 +197,102 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 		weightMin: 200,
 		weightMax: 900,
 		faces: [
-			{ base64: SN_PRO_ROMAN_BASE64, format: "woff2", style: "normal" },
-			{ base64: SN_PRO_ITALIC_BASE64, format: "woff2", style: "italic" },
+			{ base64: SN_PRO_ROMAN_BASE64, fileName: "SNPro-VariableFont_wght.woff2", format: "woff2", style: "normal" },
+			{ base64: SN_PRO_ITALIC_BASE64, fileName: "SNPro-Italic-VariableFont_wght.woff2", format: "woff2", style: "italic" },
 		],
 	},
 ];
 
+/** Plugin directory (set from main on load) for reading `fonts/*.woff2` on disk. */
+let fontPluginDir: string | null = null;
+
+export function setFontPluginDir(dir: string | undefined): void {
+	fontPluginDir = dir && dir.length > 0 ? dir : null;
+}
+
+const fontFacesRegisteredFor = new WeakSet<Document>();
+const FONT_STYLE_ID = "formatforge-font-faces";
+
+function base64ToUint8Array(base64: string): Uint8Array {
+	const binary = atob(base64);
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+	return bytes;
+}
+
+function readFaceBytes(face: CustomFontFace): Uint8Array {
+	if (fontPluginDir) {
+		try {
+			// Desktop Obsidian — prefer real files over giant data URLs / in-memory decode.
+			const fs = require("fs") as typeof import("fs");
+			const path = require("path") as typeof import("path");
+			const fullPath = path.join(fontPluginDir, "fonts", face.fileName);
+			const buf = fs.readFileSync(fullPath);
+			return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+		} catch {
+			// Fall through to embedded base64.
+		}
+	}
+	return base64ToUint8Array(face.base64);
+}
+
+function mimeForFormat(format: CustomFontFace["format"]): string {
+	if (format === "woff2") return "font/woff2";
+	if (format === "truetype") return "font/ttf";
+	return "font/otf";
+}
+
 /**
- * Registers every embedded custom font's faces into `doc.fonts` via the CSS Font Loading API
- * (`FontFace`), using `doc`'s own window realm's constructor (a pop-out window is a distinct
- * global scope from the main window). Obsidian plugins may not create/attach `<style>` elements,
- * so this replaces what used to be a dynamically injected `@font-face` stylesheet. `CUSTOM_FONTS`
- * is a small, fixed, build-time-known set, so callers only need to call this once per `doc`.
+ * Registers every embedded custom font into `doc` via blob-URL `@font-face` rules and the
+ * FontFace API. Idempotent per document. Prefer on-disk `fonts/` files when the plugin dir is set.
  */
-export function registerCustomFontFaces(doc: Document): void {
-	const FontFaceCtor = doc.defaultView?.FontFace ?? FontFace;
+export async function registerCustomFontFaces(doc: Document): Promise<void> {
+	if (fontFacesRegisteredFor.has(doc)) return;
+
+	const win = doc.defaultView;
+	if (!win) return;
+
+	let styleEl = doc.getElementById(FONT_STYLE_ID) as HTMLStyleElement | null;
+	if (!styleEl) {
+		styleEl = doc.createElement("style");
+		styleEl.id = FONT_STYLE_ID;
+		doc.head.appendChild(styleEl);
+	}
+
+	const FontFaceCtor = win.FontFace;
+	const cssChunks: string[] = [];
+	const loads: Promise<FontFace>[] = [];
+
 	for (const font of CUSTOM_FONTS) {
 		const rangeDescriptor = font.weightMin === font.weightMax ? `${font.weightMin}` : `${font.weightMin} ${font.weightMax}`;
 		for (const face of font.faces) {
 			const weightDescriptor = face.weight != null ? `${face.weight}` : rangeDescriptor;
-			const source = `url(data:font/${face.format};base64,${face.base64}) format("${face.format}")`;
-			const fontFace = new FontFaceCtor(font.cssFontFamily, source, { weight: weightDescriptor, style: face.style });
-			doc.fonts.add(fontFace);
-			// Decode in the background so faces are ready when first applied to the UI/editor.
-			void fontFace.load();
+			const bytes = readFaceBytes(face);
+			const blob = new Blob([bytes as BlobPart], { type: mimeForFormat(face.format) });
+			const url = URL.createObjectURL(blob);
+
+			cssChunks.push(
+				`@font-face{font-family:"${font.cssFontFamily}";src:url("${url}") format("${face.format}");font-weight:${weightDescriptor};font-style:${face.style};font-display:swap;}`,
+			);
+
+			try {
+				const fontFace = new FontFaceCtor(font.cssFontFamily, `url(${url})`, {
+					weight: weightDescriptor,
+					style: face.style,
+				});
+				doc.fonts.add(fontFace);
+				loads.push(fontFace.load().catch(() => fontFace));
+			} catch {
+				// CSS @font-face above still applies.
+			}
 		}
 	}
+
+	styleEl.textContent = cssChunks.join("\n");
+	await Promise.all(loads);
+	fontFacesRegisteredFor.add(doc);
 }
 
-/**
- * The `font-family`/`font-variation-settings` *values* for switching to a custom embedded font at
- * a given requested weight: real interpolation for a variable font whose weightMin/weightMax range
- * covers it (e.g. IBM Plex Sans Var); no variation axis for a static/single-weight font
- * (weightMin === weightMax), since it has no "wght" axis. Font-synthesis is deliberately left at
- * its default (on) in both cases, so genuine <strong>/<b> text typed in the editor still renders
- * bold via the browser's synthetic bold (or a real bold face when one is registered, e.g. Courier
- * Prime) — only the weight-picker-driven fake bolding is removed here.
- */
 export function resolveCustomFontFamilyParts(font: CustomFontEntry, requestedWeight: number): { family: string; variation: string | null } {
 	const family = `"${font.cssFontFamily}", var(--font-text)`;
 	if (font.weightMin === font.weightMax) {

@@ -1,5 +1,5 @@
 import { App, Modal } from "obsidian";
-import { CUSTOM_FONTS, type CustomFontEntry } from "../fonts";
+import { CUSTOM_FONTS, registerCustomFontFaces, type CustomFontEntry } from "../fonts";
 import { weightNameFor, weightPreviewLabel } from "./fontPickerUtils";
 
 export type FontPickerSelectHandler = (fontId: string) => void | Promise<void>;
@@ -23,7 +23,7 @@ export class FontPickerModal extends Modal {
 		this.modalEl.addClass("ff-font-picker-modal");
 		this.titleEl.remove();
 		this.modalEl.querySelector(".modal-close-button")?.remove();
-		this.render();
+		void registerCustomFontFaces(document).then(() => this.render());
 	}
 
 	onClose(): void {

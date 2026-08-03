@@ -2,11 +2,7 @@ import { App, Modal, Setting, SettingGroup, ToggleComponent } from "obsidian";
 import type FormatForgePlugin from "../main";
 import type { SfFormattingApi, SfLinkedFormattingKey } from "../storyforgeBridge";
 import { bindColorSwatchButton, bindExclusivePair, renderCustomFontCard, renderTabbedBody, type FontCardHost, type StyleModalTab } from "./styleModalHelpers";
-
-const EDITOR_SCROLLBAR_THICKNESS_ORDER = ["thin", "medium", "thick"] as const;
-const EDITOR_SCROLLBAR_THICKNESS_LABELS = ["Thin", "Medium", "Thick"];
-
-type EditorScrollbarThickness = "thin" | "medium" | "thick";
+import { mountUiStylePreviewSample } from "./uiStylePreviewSample";
 
 /**
  * Wraps the SF formatting API so `renderCustomFontCard` can write linked settings
@@ -38,6 +34,7 @@ export class UiFormattingModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("sf-ui-formatting-modal");
+		this.modalEl.addClass("ff-ui-formatting-modal");
 		this.titleEl.remove();
 		this.render();
 	}
@@ -51,9 +48,16 @@ export class UiFormattingModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass("sf-ui-formatting-modal");
 
+		// Re-read in case the host connected after the settings row was built.
+		const liveApi = this.plugin.getStoryForgeApi() ?? this.sfApi;
+		if (liveApi && liveApi !== this.sfApi) {
+			this.sfApi = liveApi;
+			this.sfHost = new SfLinkedSettingsAdapter(liveApi);
+		}
+
 		if (!this.sfApi || !this.sfHost) {
 			contentEl.createEl("p", {
-				text: "No Forge host with panel chrome is connected yet. Text styling still works from the Text styling command; interface chrome appears when storyForge (or another host) is enabled.",
+				text: "storyForge is not connected yet. Text styling still works; interface chrome appears once storyForge is enabled.",
 				cls: "ff-settings-description",
 			});
 			return;
@@ -63,13 +67,19 @@ export class UiFormattingModal extends Modal {
 		const sfHost = this.sfHost;
 		const s = sfApi.getLinkedSettings() as Record<string, unknown>;
 
+		const layout = contentEl.createDiv({ cls: "ff-text-style-layout" });
+		const controls = layout.createDiv({ cls: "ff-text-style-controls" });
+		const previewPane = layout.createDiv({ cls: "ff-style-preview-pane" });
+		previewPane.createDiv({ cls: "ff-style-preview-label", text: "Preview" });
+		const preview = previewPane.createDiv({ cls: "ff-style-preview ff-ui-style-preview" });
+		mountUiStylePreviewSample(preview);
+
 		const tabs: StyleModalTab[] = [
 			{
 				id: "guides",
 				label: "Guides",
 				render: (body) => {
 					this.renderHighlightGroup(body, s, sfApi);
-					this.renderCyclingGuideCard(body, s, sfApi);
 				},
 			},
 			{
@@ -124,64 +134,9 @@ export class UiFormattingModal extends Modal {
 					this.renderCodexPanelContent(body, s, sfApi, sfHost);
 				},
 			},
-			{
-				id: "editor",
-				label: "Editor",
-				render: (body) => {
-					this.renderEditorScrollbarGroup(body, s, sfApi);
-				},
-			},
 		];
 
-		renderTabbedBody(contentEl, tabs);
-	}
-
-	private renderEditorScrollbarGroup(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi): void {
-		const group = new SettingGroup(body);
-		group.setHeading("Scrollbar");
-
-		group.addSetting((setting) => {
-			setting
-				.setName("Scrollbar")
-				.setDesc("Colour of the scrollbar thumb in the manuscript editor.")
-				.addButton((button) =>
-					bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.editorScrollbarThumbColor as string, (hex) => {
-						void sfApi.updateLinkedSetting("editorScrollbarThumbColor", hex);
-					}),
-				);
-		});
-
-		group.addSetting((setting) => {
-			setting
-				.setName("Scrollbar track")
-				.setDesc("Colour of the scrollbar rail behind the thumb.")
-				.addButton((button) =>
-					bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.editorScrollbarTrackColor as string, (hex) => {
-						void sfApi.updateLinkedSetting("editorScrollbarTrackColor", hex);
-					}),
-				);
-		});
-
-		const thicknessIdx = Math.max(0, EDITOR_SCROLLBAR_THICKNESS_ORDER.indexOf(s.editorScrollbarThickness as EditorScrollbarThickness));
-		group.addSetting((setting) => {
-			setting
-				.setName("Thickness")
-				.setDesc(`${EDITOR_SCROLLBAR_THICKNESS_LABELS[thicknessIdx]} — thin · medium · thick. Hover the editor to see the scrollbar.`)
-				.addSlider((slider) =>
-					slider
-						.setLimits(0, 2, 1)
-						.setValue(thicknessIdx)
-						.setDisplayFormat((value) => EDITOR_SCROLLBAR_THICKNESS_LABELS[Math.round(value)] ?? "Thick")
-						.onChange((value) => {
-							const idx = Math.round(value);
-							const thickness = EDITOR_SCROLLBAR_THICKNESS_ORDER[idx] ?? "thick";
-							setting.setDesc(
-								`${EDITOR_SCROLLBAR_THICKNESS_LABELS[idx] ?? "Thick"} — thin · medium · thick. Hover the editor to see the scrollbar.`,
-							);
-							void sfApi.updateLinkedSetting("editorScrollbarThickness", thickness);
-						}),
-				);
-		});
+		renderTabbedBody(controls, tabs);
 	}
 
 	private renderHighlightGroup(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi): void {
@@ -196,98 +151,6 @@ export class UiFormattingModal extends Modal {
 						.onChange((value) => void sfApi.updateLinkedSetting("highlightActiveChapter", value)),
 				);
 		});
-	}
-
-	private renderCyclingGuideCard(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi): void {
-		const cyclingGuideGroup = new SettingGroup(body);
-
-		let cyclingGuideToggle!: ToggleComponent;
-		cyclingGuideGroup.addSetting((setting) => {
-			setting
-				.setName("Cycling guide")
-				.setDesc("Draws a floating guideline in the editor.")
-				.addToggle((toggle) => {
-					cyclingGuideToggle = toggle;
-					toggle.setValue(s.cyclingGuideEnabled as boolean);
-				});
-		});
-
-		let cyclingGuideThicknessSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideThicknessSetting = setting;
-			setting.setName("Thickness").addDropdown((dropdown) =>
-				dropdown
-					.addOption("thin", "Thin")
-					.addOption("medium", "Medium")
-					.addOption("thick", "Thick")
-					.addOption("extra-thick", "Extra thick")
-					.setValue(s.cyclingGuideThickness as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideThickness", value)),
-			);
-		});
-
-		let cyclingGuideFlagSizeSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideFlagSizeSetting = setting;
-			setting.setName("Flag size").addDropdown((dropdown) =>
-				dropdown
-					.addOption("small", "Small")
-					.addOption("medium", "Medium")
-					.addOption("large", "Large")
-					.setValue(s.cyclingGuideFlagSize as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideFlagSize", value)),
-			);
-		});
-
-		let cyclingGuideRoundedLinesSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideRoundedLinesSetting = setting;
-			setting
-				.setName("Rounded lines")
-				.setDesc("Rounds the corners of the divider line, except the bottom-right where the flag sits.")
-				.addToggle((toggle) =>
-					toggle
-						.setValue(s.cyclingGuideRoundedLines as boolean)
-						.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideRoundedLines", value)),
-				);
-		});
-
-		let cyclingGuideIntervalSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideIntervalSetting = setting;
-			setting.setName("Cycle length").addDropdown((dropdown) =>
-				dropdown
-					.addOption("short", "Short")
-					.addOption("medium", "Medium")
-					.addOption("large", "Long")
-					.setValue(s.cyclingGuideInterval as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideInterval", value)),
-			);
-		});
-
-		let cyclingGuideColorSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideColorSetting = setting;
-			setting.setName("Line colour").addButton((button) =>
-				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.cyclingGuideColor as string, (hex) => {
-					void sfApi.updateLinkedSetting("cyclingGuideColor", hex);
-				}),
-			);
-		});
-
-		const applyCyclingGuideVisibility = (hidden: boolean) => {
-			cyclingGuideThicknessSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			cyclingGuideFlagSizeSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			cyclingGuideRoundedLinesSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			cyclingGuideIntervalSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			cyclingGuideColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-		};
-		cyclingGuideToggle.onChange((value) => {
-			void sfApi.updateLinkedSetting("cyclingGuideEnabled", value).then(() => {
-				applyCyclingGuideVisibility(!value);
-			});
-		});
-		applyCyclingGuideVisibility(!(s.cyclingGuideEnabled as boolean));
 	}
 
 	private renderTitleStyleGroup(

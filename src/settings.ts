@@ -1,4 +1,7 @@
+import type { PaletteColor, PaletteName } from "./colorPalettes";
+
 export type HeadingDividerThickness = "thin" | "medium" | "thick" | "extra-thick";
+export type EditorScrollbarThickness = "thin" | "medium" | "thick";
 export type FontWeight = "300" | "400" | "500" | "600" | "700" | "800" | "900";
 
 export const HEADING_DIVIDER_WIDTH_PX: Record<HeadingDividerThickness, number> = {
@@ -8,9 +11,39 @@ export const HEADING_DIVIDER_WIDTH_PX: Record<HeadingDividerThickness, number> =
 	"extra-thick": 6,
 };
 
-/** Settings owned exclusively by formatForge — editor typography only (no UI chrome, no sizes). */
+/** Editor scrollbar widths: thick ≈ roomy; thin = practical minimum; medium midway. */
+export const EDITOR_SCROLLBAR_WIDTH_PX: Record<EditorScrollbarThickness, number> = {
+	thin: 6,
+	medium: 12,
+	thick: 20,
+};
+
+export const DEFAULT_CUSTOM_PALETTE_COLORS: PaletteColor[] = [
+	{ name: "Ink", hex: "#232427" },
+	{ name: "Paper", hex: "#F4F4F1" },
+	{ name: "Rose", hex: "#E08C8C" },
+	{ name: "Sage", hex: "#8FBF9A" },
+	{ name: "Sky", hex: "#8FB0DE" },
+];
+
+/**
+ * Settings owned by formatForge.
+ * Palette, editor sizes, and scrollbar are local when standalone; when storyForge is
+ * present those surfaces still prefer the host's linked settings API.
+ */
 export interface FormatForgeSettings {
+	// ── Colour palette (used when storyForge is not present) ───────
+	colorPaletteName: PaletteName;
+	colorPaletteVariant: string;
+	customPaletteColors: PaletteColor[];
+
+	// ── Manuscript editor scrollbar ────────────────────────────────
+	editorScrollbarThumbColor: string;
+	editorScrollbarThickness: EditorScrollbarThickness;
+
 	// ── Body text ──────────────────────────────────────────────────
+	bodyTextOverrideSize: boolean;
+	bodyTextSize: number;
 	bodyTextOverrideColor: boolean;
 	bodyTextColor: string;
 	bodyTextOverrideFont: boolean;
@@ -19,9 +52,17 @@ export interface FormatForgeSettings {
 	bodyTextOverrideEmphasisColor: boolean;
 	bodyTextBoldColor: string;
 	bodyTextItalicColor: string;
+	bodyLinkOverrideColor: boolean;
+	bodyLinkColor: string;
+	bodyLinkRemoveUnderline: boolean;
+	bodyHighlightOverride: boolean;
+	bodyHighlightBgColor: string;
+	bodyHighlightTextColor: string;
 
 	// ── Heading 1 ──────────────────────────────────────────────────
 	hideHeading1Links: boolean;
+	heading1OverrideSize: boolean;
+	heading1Size: number;
 	heading1OverrideColor: boolean;
 	heading1Color: string;
 	heading1OverrideFont: boolean;
@@ -34,6 +75,8 @@ export interface FormatForgeSettings {
 	heading1DividerBelowThickness: HeadingDividerThickness;
 
 	// ── Heading 2 ──────────────────────────────────────────────────
+	heading2OverrideSize: boolean;
+	heading2Size: number;
 	heading2OverrideColor: boolean;
 	heading2Color: string;
 	heading2OverrideFont: boolean;
@@ -46,6 +89,8 @@ export interface FormatForgeSettings {
 	heading2DividerBelowThickness: HeadingDividerThickness;
 
 	// ── Heading 3 ──────────────────────────────────────────────────
+	heading3OverrideSize: boolean;
+	heading3Size: number;
 	heading3OverrideColor: boolean;
 	heading3Color: string;
 	heading3OverrideFont: boolean;
@@ -58,6 +103,8 @@ export interface FormatForgeSettings {
 	heading3DividerBelowThickness: HeadingDividerThickness;
 
 	// ── Heading 4 ──────────────────────────────────────────────────
+	heading4OverrideSize: boolean;
+	heading4Size: number;
 	heading4OverrideColor: boolean;
 	heading4Color: string;
 	heading4OverrideFont: boolean;
@@ -70,6 +117,8 @@ export interface FormatForgeSettings {
 	heading4DividerBelowThickness: HeadingDividerThickness;
 
 	// ── Heading 5 ──────────────────────────────────────────────────
+	heading5OverrideSize: boolean;
+	heading5Size: number;
 	heading5OverrideColor: boolean;
 	heading5Color: string;
 	heading5OverrideFont: boolean;
@@ -82,6 +131,8 @@ export interface FormatForgeSettings {
 	heading5DividerBelowThickness: HeadingDividerThickness;
 
 	// ── Heading 6 ──────────────────────────────────────────────────
+	heading6OverrideSize: boolean;
+	heading6Size: number;
 	heading6OverrideColor: boolean;
 	heading6Color: string;
 	heading6OverrideFont: boolean;
@@ -95,7 +146,18 @@ export interface FormatForgeSettings {
 }
 
 export const DEFAULT_SETTINGS: FormatForgeSettings = {
+	// Palette
+	colorPaletteName: "Custom",
+	colorPaletteVariant: "",
+	customPaletteColors: DEFAULT_CUSTOM_PALETTE_COLORS.map((c) => ({ ...c })),
+
+	// Scrollbar
+	editorScrollbarThumbColor: "#6b7280",
+	editorScrollbarThickness: "thick",
+
 	// Body
+	bodyTextOverrideSize: false,
+	bodyTextSize: 1,
 	bodyTextOverrideColor: false,
 	bodyTextColor: "#d4d4d4",
 	bodyTextOverrideFont: false,
@@ -104,9 +166,17 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	bodyTextOverrideEmphasisColor: false,
 	bodyTextBoldColor: "#ffffff",
 	bodyTextItalicColor: "#c8c8c8",
+	bodyLinkOverrideColor: false,
+	bodyLinkColor: "#7eb8da",
+	bodyLinkRemoveUnderline: false,
+	bodyHighlightOverride: false,
+	bodyHighlightBgColor: "#e0af68",
+	bodyHighlightTextColor: "#1a1a1a",
 
 	// H1
 	hideHeading1Links: false,
+	heading1OverrideSize: false,
+	heading1Size: 1,
 	heading1OverrideColor: false,
 	heading1Color: "#ffffff",
 	heading1OverrideFont: false,
@@ -119,6 +189,8 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	heading1DividerBelowThickness: "thin",
 
 	// H2
+	heading2OverrideSize: false,
+	heading2Size: 1,
 	heading2OverrideColor: false,
 	heading2Color: "#eeeeee",
 	heading2OverrideFont: false,
@@ -131,6 +203,8 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	heading2DividerBelowThickness: "thin",
 
 	// H3
+	heading3OverrideSize: false,
+	heading3Size: 1,
 	heading3OverrideColor: false,
 	heading3Color: "#dddddd",
 	heading3OverrideFont: false,
@@ -143,6 +217,8 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	heading3DividerBelowThickness: "thin",
 
 	// H4
+	heading4OverrideSize: false,
+	heading4Size: 1,
 	heading4OverrideColor: false,
 	heading4Color: "#cccccc",
 	heading4OverrideFont: false,
@@ -155,6 +231,8 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	heading4DividerBelowThickness: "thin",
 
 	// H5
+	heading5OverrideSize: false,
+	heading5Size: 1,
 	heading5OverrideColor: false,
 	heading5Color: "#bbbbbb",
 	heading5OverrideFont: false,
@@ -167,6 +245,8 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	heading5DividerBelowThickness: "thin",
 
 	// H6
+	heading6OverrideSize: false,
+	heading6Size: 1,
 	heading6OverrideColor: false,
 	heading6Color: "#aaaaaa",
 	heading6OverrideFont: false,

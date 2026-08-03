@@ -127,7 +127,6 @@ export type SfLinkedFormattingKey =
 	| "cyclingGuideRoundedLines"
 	| "cyclingGuideInterval"
 	| "editorScrollbarThumbColor"
-	| "editorScrollbarTrackColor"
 	| "editorScrollbarThickness";
 
 // ── Formatting API surface ─────────────────────────────────────────────────

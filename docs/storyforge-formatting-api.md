@@ -100,6 +100,10 @@ formatForge calls `formatting.setStyleVars()` to apply the following vars to `do
 | `--sf-body-weight` | FF | Body font-weight (static fonts only) |
 | `--sf-body-bold-color` | FF | Bold emphasis colour |
 | `--sf-body-italic-color` | FF | Italic emphasis colour |
+| `--sf-body-link-color` | FF | Body link colour override |
+| `--sf-body-link-decoration` | FF | Body link underline removal (`none`) |
+| `--sf-body-highlight-bg` | FF | `==highlight==` background colour |
+| `--sf-body-highlight-color` | FF | `==highlight==` text colour |
 | `--sf-h1-color` … `--sf-h6-color` | FF | Heading colour overrides |
 | `--sf-h1-family` … `--sf-h6-family` | FF | Heading font families |
 | `--sf-h1-variation` … `--sf-h6-variation` | FF | Heading variation-settings |

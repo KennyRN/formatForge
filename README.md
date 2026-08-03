@@ -13,12 +13,17 @@ It works **on its own** for any vault that wants clearer note formatting. It als
 ## What formatForge owns
 
 - Editor **body and heading colours** (H1–H6)
+- Editor **font sizes** (body + H1–H6) when running alone
 - Editor **font families and weights** (H1–H6 and body)
 - **Heading dividers** — configurable border lines above/below each heading level
 - **Hide H1 links** — renders links inside H1 as plain text
 - **Small caps** per heading level
 - **Bold and italic emphasis colours** for body text
-- The full **Text Styling** modal UI
+- **Link colour and underline** controls for body links
+- **Highlight colours** (background + text) for `==highlighted==` marks
+- The full **Text Styling** modal UI, including a live Lorem Ipsum manuscript preview
+- **Colour palette** selection (and Custom swatches) for formatting colour pickers when running alone
+- **Manuscript editor scrollbar** thumb colour and thickness
 - Embedded custom fonts (`fonts/` + `src/fonts.ts`)
 
 ## Forge family integration
@@ -27,7 +32,7 @@ When a Forge host is enabled, formatForge can also adjust that host’s formatti
 
 | Host | What formatForge contributes |
 |---|---|
-| **storyForge** | Registers as formatting companion; applies editor CSS vars; shared palette; panel chrome (library, unplaced, codex, cycling guide, scrollbar) via the Forge interface modal; linked font sizes |
+| **storyForge** | Registers as formatting companion; applies editor CSS vars; shared palette / sizes / scrollbar; panel chrome (library, unplaced, codex, cycling guide) via the storyForge interface modal |
 | **timelineForge** | Font catalogue, font picker, and face registration for the timeline rail (controls live in timelineForge’s appearance UI) |
 
 Hosts are detected at runtime. Missing hosts are ignored — there is no required-plugin warning.
@@ -65,8 +70,9 @@ See `docs/timelineforge-formatting-api.md` and `docs/storyforge-formatting-api.m
 
 | Setting group | Persisted in |
 |---|---|
-| Editor body/heading colours, fonts, dividers, H1 link hiding | `formatForge/data.json` |
-| Font sizes (body + H1–H6) | `storyForge/data.json` when storyForge is present (linked settings API) |
-| Colour palette | `storyForge/data.json` when storyForge is present |
+| Editor body/heading colours, fonts, sizes, dividers, H1 link hiding, body links, highlights | `formatForge/data.json` |
+| Colour palette (name, variant, custom colours) | `formatForge/data.json` standalone; `storyForge/data.json` when storyForge is present |
+| Font sizes (body + H1–H6) | `formatForge/data.json` standalone; `storyForge/data.json` when storyForge is present (linked settings API) |
+| Manuscript editor scrollbar | `formatForge/data.json` standalone; `storyForge/data.json` when storyForge is present |
 | storyForge panel chrome | `storyForge/data.json` via linked settings |
 | Timeline rail colours + typography | timelineForge `_tf-backstage/folders/*.md` |

@@ -86,10 +86,19 @@
 
 /* ── Text Style / UI Formatting modal (tabbed) ─────────────────────────── */
 
-.modal.sf-text-style-modal,
-.modal.sf-ui-formatting-modal {
-	width: 560px;
-	height: 760px;
+/* Wide enough for controls | live preview.
+ * Extra class on the UI modal beats storyForge's shared 560px rule regardless of CSS load order. */
+.modal.sf-text-style-modal {
+	width: min(92vw, 1120px);
+	height: min(90vh, 760px);
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+}
+
+.modal.sf-ui-formatting-modal.ff-ui-formatting-modal {
+	width: min(96vw, 1240px);
+	height: min(90vh, 780px);
 	display: flex;
 	flex-direction: column;
 	padding: 0;
@@ -104,6 +113,282 @@
 	padding: 16px;
 	min-height: 0;
 	min-width: 0;
+}
+
+/* Text styling: controls | live preview */
+.ff-text-style-layout {
+	flex: 1;
+	display: flex;
+	flex-direction: row;
+	gap: 16px;
+	min-height: 0;
+	min-width: 0;
+}
+
+.ff-text-style-controls {
+	flex: 1 1 0;
+	min-width: 280px;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.ff-style-preview-pane {
+	flex: 1 1 0;
+	min-width: 280px;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	overflow: hidden;
+	background: var(--background-primary);
+}
+
+/* storyForge interface: reserve the preview column so settings cannot push it off-screen */
+.modal.ff-ui-formatting-modal .ff-text-style-layout {
+	gap: 12px;
+}
+
+.modal.ff-ui-formatting-modal .ff-text-style-controls {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.modal.ff-ui-formatting-modal .ff-style-preview-pane {
+	flex: 0 0 clamp(300px, 40%, 420px);
+	width: clamp(300px, 40%, 420px);
+	min-width: 300px;
+	max-width: 44%;
+}
+
+.ff-style-preview-label {
+	flex-shrink: 0;
+	padding: 8px 12px;
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.ff-style-preview {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 16px 20px 24px;
+	box-sizing: border-box;
+}
+
+.ff-style-preview h1,
+.ff-style-preview h2,
+.ff-style-preview h3,
+.ff-style-preview h4,
+.ff-style-preview h5,
+.ff-style-preview h6 {
+	margin-block: 0.6em 0.35em;
+	line-height: 1.25;
+}
+
+.ff-style-preview h1:first-child {
+	margin-block-start: 0;
+}
+
+.ff-style-preview p {
+	margin-block: 0 0.85em;
+	line-height: 1.55;
+}
+
+/* Live preview mirrors editor CSS variables.
+ * High specificity so Obsidian modal/heading rules do not win on font-family. */
+.modal.sf-text-style-modal .ff-style-preview p {
+	font-size: var(--sf-body-size, inherit);
+	color: var(--sf-body-color, var(--text-normal));
+	font-weight: var(--sf-body-weight, inherit);
+	font-family: var(--sf-body-family, inherit);
+	font-variation-settings: var(--sf-body-variation, normal);
+}
+.modal.sf-text-style-modal .ff-style-preview strong:not(#formatforge-specificity-boost) {
+	color: var(--sf-body-bold-color, inherit);
+	font-family: inherit;
+	font-variation-settings: inherit;
+}
+.modal.sf-text-style-modal .ff-style-preview em:not(#formatforge-specificity-boost) {
+	color: var(--sf-body-italic-color, inherit);
+	font-family: inherit;
+	font-variation-settings: inherit;
+}
+.modal.sf-text-style-modal .ff-style-preview a:not(#formatforge-specificity-boost) {
+	color: var(--sf-body-link-color, inherit);
+	text-decoration: var(--sf-body-link-decoration, inherit);
+}
+.modal.sf-text-style-modal .ff-style-preview mark:not(#formatforge-specificity-boost) {
+	background-color: var(--sf-body-highlight-bg, inherit);
+	color: var(--sf-body-highlight-color, inherit);
+}
+
+.modal.sf-text-style-modal .ff-style-preview h1 {
+	font-size: var(--sf-h1-size, 1.8em);
+	font-weight: var(--sf-h1-weight, inherit);
+	border-top: var(--sf-h1-border-top, none);
+	border-bottom: var(--sf-h1-border-bottom, none);
+	font-family: var(--sf-h1-family, inherit);
+	font-variation-settings: var(--sf-h1-variation, normal);
+	color: var(--sf-h1-color, var(--text-normal));
+	font-variant: var(--sf-h1-variant, normal);
+}
+.modal.sf-text-style-modal .ff-style-preview h2 {
+	font-size: var(--sf-h2-size, 1.5em);
+	font-weight: var(--sf-h2-weight, inherit);
+	border-top: var(--sf-h2-border-top, none);
+	border-bottom: var(--sf-h2-border-bottom, none);
+	font-family: var(--sf-h2-family, inherit);
+	font-variation-settings: var(--sf-h2-variation, normal);
+	color: var(--sf-h2-color, var(--text-normal));
+	font-variant: var(--sf-h2-variant, normal);
+}
+.modal.sf-text-style-modal .ff-style-preview h3 {
+	font-size: var(--sf-h3-size, 1.35em);
+	font-weight: var(--sf-h3-weight, inherit);
+	border-top: var(--sf-h3-border-top, none);
+	border-bottom: var(--sf-h3-border-bottom, none);
+	font-family: var(--sf-h3-family, inherit);
+	font-variation-settings: var(--sf-h3-variation, normal);
+	color: var(--sf-h3-color, var(--text-normal));
+	font-variant: var(--sf-h3-variant, normal);
+}
+.modal.sf-text-style-modal .ff-style-preview h4 {
+	font-size: var(--sf-h4-size, 1.2em);
+	font-weight: var(--sf-h4-weight, inherit);
+	border-top: var(--sf-h4-border-top, none);
+	border-bottom: var(--sf-h4-border-bottom, none);
+	font-family: var(--sf-h4-family, inherit);
+	font-variation-settings: var(--sf-h4-variation, normal);
+	color: var(--sf-h4-color, var(--text-normal));
+	font-variant: var(--sf-h4-variant, normal);
+}
+.modal.sf-text-style-modal .ff-style-preview h5 {
+	font-size: var(--sf-h5-size, 1.1em);
+	font-weight: var(--sf-h5-weight, inherit);
+	border-top: var(--sf-h5-border-top, none);
+	border-bottom: var(--sf-h5-border-bottom, none);
+	font-family: var(--sf-h5-family, inherit);
+	font-variation-settings: var(--sf-h5-variation, normal);
+	color: var(--sf-h5-color, var(--text-normal));
+	font-variant: var(--sf-h5-variant, normal);
+}
+.modal.sf-text-style-modal .ff-style-preview h6 {
+	font-size: var(--sf-h6-size, 1em);
+	font-weight: var(--sf-h6-weight, inherit);
+	border-top: var(--sf-h6-border-top, none);
+	border-bottom: var(--sf-h6-border-bottom, none);
+	font-family: var(--sf-h6-family, inherit);
+	font-variation-settings: var(--sf-h6-variation, normal);
+	color: var(--sf-h6-color, var(--text-normal));
+	font-variant: var(--sf-h6-variant, normal);
+}
+
+@media (max-width: 900px) {
+	.ff-text-style-layout {
+		flex-direction: column;
+	}
+
+	.ff-text-style-controls {
+		flex: 1 1 55%;
+		min-width: 0;
+	}
+
+	.ff-style-preview-pane {
+		flex: 0 1 40%;
+		min-width: 0;
+		max-height: 40%;
+	}
+
+	/* Keep storyForge interface preview beside controls even on shorter viewports */
+	.modal.ff-ui-formatting-modal .ff-text-style-layout {
+		flex-direction: row;
+	}
+
+	.modal.ff-ui-formatting-modal .ff-style-preview-pane {
+		flex: 0 0 280px;
+		width: 280px;
+		min-width: 260px;
+		max-width: 42%;
+		max-height: none;
+	}
+}
+
+/* storyForge interface preview: host the real panel chrome classes */
+.ff-ui-style-preview {
+	padding: 0;
+	background: var(--background-primary);
+}
+
+.ff-ui-style-preview .ff-ui-preview-host.storyforge-view {
+	display: grid;
+	grid-template-rows: 3fr 2fr;
+	height: 100%;
+	min-height: 100%;
+	pointer-events: none;
+	user-select: none;
+}
+
+/* Text styling preview: cycling guide mid-manuscript (uses storyForge --sf-cg-* vars) */
+.ff-style-preview .ff-style-preview-cg {
+	position: relative;
+	margin: 0.35em 0 1.5em;
+	min-height: 1.1em;
+}
+
+.ff-style-preview .ff-style-preview-cg-spacer {
+	opacity: 0;
+	font-size: var(--font-ui-smaller);
+	line-height: 1.2;
+	pointer-events: none;
+}
+
+/* Fallbacks when storyForge's cycling-guide rules aren't present yet */
+.ff-style-preview .ff-style-preview-cg.sf-cycling-guide-line::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 100%;
+	height: var(--sf-cg-height, 2px);
+	background-color: var(--sf-cg-color, var(--text-accent));
+	pointer-events: none;
+	border-radius: var(--sf-cg-radius, 0);
+}
+
+.ff-style-preview .ff-style-preview-cg .sf-cycling-guide-badge {
+	position: absolute;
+	top: calc(100% + var(--sf-cg-height, 2px));
+	right: 0;
+	width: var(--sf-cg-badge-size, 18px);
+	height: var(--sf-cg-badge-inner-height, 15px);
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	background-color: var(--sf-cg-color, var(--text-accent));
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+	pointer-events: none;
+}
+
+.ff-style-preview .ff-style-preview-cg .sf-cycling-guide-badge-icon {
+	position: absolute;
+	top: -1px;
+	left: 0;
+	right: 0;
+	color: var(--background-primary);
+	font-size: var(--sf-cg-flag-size, 0.75em);
+	line-height: 0;
+	text-align: center;
+}
+
+.ff-style-preview .ff-style-preview-cg .sf-cycling-guide-badge-icon svg {
+	width: 1em;
+	height: 1em;
 }
 
 .sf-text-style-tab-bar {
@@ -199,6 +484,22 @@
 .markdown-reading-view em:not(#formatforge-specificity-boost),
 .cm-em:not(#formatforge-specificity-boost) {
 	color: var(--sf-body-italic-color, revert);
+}
+
+.markdown-reading-view :is(p, li, blockquote, td, th) a:not(#formatforge-specificity-boost),
+.markdown-reading-view .callout a:not(#formatforge-specificity-boost),
+.cm-line:not(.HyperMD-header) .cm-link:not(#formatforge-specificity-boost),
+.cm-line:not(.HyperMD-header) .cm-hmd-internal-link:not(#formatforge-specificity-boost),
+.cm-line:not(.HyperMD-header) .cm-url:not(#formatforge-specificity-boost),
+.cm-line:not(.HyperMD-header) .cm-underline:not(#formatforge-specificity-boost) {
+	color: var(--sf-body-link-color, revert);
+	text-decoration: var(--sf-body-link-decoration, revert);
+}
+
+.markdown-reading-view mark:not(#formatforge-specificity-boost),
+.cm-highlight:not(#formatforge-specificity-boost) {
+	background-color: var(--sf-body-highlight-bg, revert);
+	color: var(--sf-body-highlight-color, revert);
 }
 
 .markdown-reading-view h1, .HyperMD-header-1 {
@@ -383,5 +684,54 @@
 .ff-font-picker-sample.is-max {
 	text-align: start;
 	padding-inline-end: 0.35em;
+}
+
+/* Manuscript editor scrollbars.
+ * Obsidian styles thumbs via --scrollbar-thumb-bg / --scrollbar-active-thumb-bg.
+ * Editor: thumb transparent at rest; colour on scroller hover.
+ * Preview (Text styling modal): always show chosen thumb colour. */
+body.sf-editor-scrollbar.sf-sb-thin .markdown-source-view .cm-scroller::-webkit-scrollbar,
+body.sf-editor-scrollbar.sf-sb-thin .markdown-preview-view::-webkit-scrollbar,
+body.sf-editor-scrollbar.sf-sb-thin .ff-style-preview::-webkit-scrollbar,
+.ff-style-preview.sf-sb-thin::-webkit-scrollbar {
+	width: 6px !important;
+	height: 6px !important;
+}
+body.sf-editor-scrollbar.sf-sb-medium .markdown-source-view .cm-scroller::-webkit-scrollbar,
+body.sf-editor-scrollbar.sf-sb-medium .markdown-preview-view::-webkit-scrollbar,
+body.sf-editor-scrollbar.sf-sb-medium .ff-style-preview::-webkit-scrollbar,
+.ff-style-preview.sf-sb-medium::-webkit-scrollbar {
+	width: 12px !important;
+	height: 12px !important;
+}
+body.sf-editor-scrollbar.sf-sb-thick .markdown-source-view .cm-scroller::-webkit-scrollbar,
+body.sf-editor-scrollbar.sf-sb-thick .markdown-preview-view::-webkit-scrollbar,
+body.sf-editor-scrollbar.sf-sb-thick .ff-style-preview::-webkit-scrollbar,
+.ff-style-preview.sf-sb-thick::-webkit-scrollbar {
+	width: 20px !important;
+	height: 20px !important;
+}
+
+body.sf-editor-scrollbar .markdown-source-view .cm-scroller::-webkit-scrollbar-thumb,
+body.sf-editor-scrollbar .markdown-preview-view::-webkit-scrollbar-thumb,
+body.sf-editor-scrollbar .ff-style-preview::-webkit-scrollbar-thumb,
+.ff-style-preview.sf-editor-scrollbar::-webkit-scrollbar-thumb {
+	background-color: transparent !important;
+	border-radius: 999px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+
+/* Preview: always paint the chosen thumb colour */
+.modal.sf-text-style-modal .ff-style-preview.sf-editor-scrollbar::-webkit-scrollbar-thumb {
+	background-color: var(--sf-editor-scrollbar-thumb, var(--scrollbar-thumb-bg, #6b7280)) !important;
+}
+
+/* Editor: reveal on hovering the scroller */
+body.sf-editor-scrollbar .markdown-source-view .cm-scroller:hover::-webkit-scrollbar-thumb,
+body.sf-editor-scrollbar .markdown-source-view .cm-scroller:active::-webkit-scrollbar-thumb,
+body.sf-editor-scrollbar .markdown-preview-view:hover::-webkit-scrollbar-thumb,
+body.sf-editor-scrollbar .markdown-preview-view:active::-webkit-scrollbar-thumb {
+	background-color: var(--sf-editor-scrollbar-thumb, var(--scrollbar-active-thumb-bg, #6b7280)) !important;
 }
 

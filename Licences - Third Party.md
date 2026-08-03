@@ -1,6 +1,6 @@
 # Licences - Third Party
 
-formatForge's own source code is licensed under the MIT Licence. This document covers the third-party icon assets, embedded fonts, and colour palettes bundled with the plugin.
+formatForge's own source code is licensed under the MIT Licence. This document covers the third-party icon assets, embedded fonts, colour palettes, and sample placeholder text bundled with the plugin.
 
 Icons from the sets below are sourced via [Iconify](https://iconify.design) and inlined into the plugin's build output. Fonts are embedded as woff2 under `fonts/`. Colour palette values are reproduced from each theme's canonical source. Each work retains its original licence. The obligations below are satisfied by shipping this file alongside the plugin distribution.
 
@@ -118,6 +118,16 @@ The following font families are embedded (as woff2) under `fonts/` and registere
 - **Source:** https://github.com/supernotes/sn-pro
 - **Copyright:** Copyright 2024 The SN Pro Project Authors (https://github.com/supernotes/sn-pro)
 - **Licence:** SIL Open Font License, Version 1.1 — *see [SIL Open Font License 1.1](#sil-open-font-license-11) below*
+
+---
+
+# Sample placeholder text
+
+## Lorem Ipsum
+
+- **Origin:** Traditional typesetting / design placeholder text, derived from a scrambled passage of Marcus Tullius Cicero’s *De finibus bonorum et malorum* (45 BC).
+- **Used in:** Text Styling modal live preview (`src/view/stylePreviewSample.ts`).
+- **Status:** Public domain. Cicero’s Latin source is ancient and not under copyright; the conventional Lorem Ipsum filler passage used here is free to use in any quantity for personal or commercial purposes. No attribution is required.
 
 ---
 
