@@ -219,11 +219,15 @@
 	font-variation-settings: inherit;
 }
 .modal.sf-text-style-modal .ff-style-preview a:not(#formatforge-specificity-boost) {
-	color: var(--sf-body-link-color, inherit);
-	text-decoration: var(--sf-body-link-decoration, inherit);
+	color: var(--sf-body-link-color, var(--link-color));
+	text-decoration: var(--sf-body-link-decoration, var(--link-decoration));
+}
+.modal.sf-text-style-modal .ff-style-preview a:hover:not(#formatforge-specificity-boost) {
+	color: var(--sf-body-link-color-hover, var(--link-color-hover));
+	text-decoration: var(--sf-body-link-decoration, var(--link-decoration-hover));
 }
 .modal.sf-text-style-modal .ff-style-preview mark:not(#formatforge-specificity-boost) {
-	background-color: var(--sf-body-highlight-bg, inherit);
+	background-color: var(--sf-body-highlight-bg, var(--text-highlight-bg));
 	color: var(--sf-body-highlight-color, inherit);
 }
 
@@ -496,6 +500,15 @@
 	text-decoration: var(--sf-body-link-decoration, revert);
 }
 
+.markdown-reading-view :is(p, li, blockquote, td, th) a:hover:not(#formatforge-specificity-boost),
+.markdown-reading-view .callout a:hover:not(#formatforge-specificity-boost),
+.cm-line:not(.HyperMD-header) .cm-link:hover:not(#formatforge-specificity-boost),
+.cm-line:not(.HyperMD-header) .cm-hmd-internal-link:hover:not(#formatforge-specificity-boost),
+.cm-line:not(.HyperMD-header) .cm-url:hover:not(#formatforge-specificity-boost),
+.cm-line:not(.HyperMD-header) .cm-underline:hover:not(#formatforge-specificity-boost) {
+	color: var(--sf-body-link-color-hover, revert);
+}
+
 .markdown-reading-view mark:not(#formatforge-specificity-boost),
 .cm-highlight:not(#formatforge-specificity-boost) {
 	background-color: var(--sf-body-highlight-bg, revert);
@@ -687,36 +700,23 @@
 }
 
 /* Manuscript editor scrollbars.
- * Obsidian styles thumbs via --scrollbar-thumb-bg / --scrollbar-active-thumb-bg.
+ * Width/colour from --sf-editor-scrollbar-* set in applyEditorScrollbarStyles().
+ * Obsidian thumbs also read --scrollbar-thumb-bg / --scrollbar-active-thumb-bg.
  * Editor: thumb transparent at rest; colour on scroller hover.
  * Preview (Text styling modal): always show chosen thumb colour. */
-body.sf-editor-scrollbar.sf-sb-thin .markdown-source-view .cm-scroller::-webkit-scrollbar,
-body.sf-editor-scrollbar.sf-sb-thin .markdown-preview-view::-webkit-scrollbar,
-body.sf-editor-scrollbar.sf-sb-thin .ff-style-preview::-webkit-scrollbar,
-.ff-style-preview.sf-sb-thin::-webkit-scrollbar {
-	width: 6px !important;
-	height: 6px !important;
-}
-body.sf-editor-scrollbar.sf-sb-medium .markdown-source-view .cm-scroller::-webkit-scrollbar,
-body.sf-editor-scrollbar.sf-sb-medium .markdown-preview-view::-webkit-scrollbar,
-body.sf-editor-scrollbar.sf-sb-medium .ff-style-preview::-webkit-scrollbar,
-.ff-style-preview.sf-sb-medium::-webkit-scrollbar {
-	width: 12px !important;
-	height: 12px !important;
-}
-body.sf-editor-scrollbar.sf-sb-thick .markdown-source-view .cm-scroller::-webkit-scrollbar,
-body.sf-editor-scrollbar.sf-sb-thick .markdown-preview-view::-webkit-scrollbar,
-body.sf-editor-scrollbar.sf-sb-thick .ff-style-preview::-webkit-scrollbar,
-.ff-style-preview.sf-sb-thick::-webkit-scrollbar {
-	width: 20px !important;
-	height: 20px !important;
+body.sf-editor-scrollbar .markdown-source-view .cm-scroller::-webkit-scrollbar,
+body.sf-editor-scrollbar .markdown-preview-view::-webkit-scrollbar,
+body.sf-editor-scrollbar .ff-style-preview::-webkit-scrollbar,
+.ff-style-preview.sf-editor-scrollbar::-webkit-scrollbar {
+	width: var(--sf-editor-scrollbar-width, 12px);
+	height: var(--sf-editor-scrollbar-width, 12px);
 }
 
 body.sf-editor-scrollbar .markdown-source-view .cm-scroller::-webkit-scrollbar-thumb,
 body.sf-editor-scrollbar .markdown-preview-view::-webkit-scrollbar-thumb,
 body.sf-editor-scrollbar .ff-style-preview::-webkit-scrollbar-thumb,
 .ff-style-preview.sf-editor-scrollbar::-webkit-scrollbar-thumb {
-	background-color: transparent !important;
+	background-color: transparent;
 	border-radius: 999px;
 	border: 2px solid transparent;
 	background-clip: padding-box;
@@ -724,7 +724,7 @@ body.sf-editor-scrollbar .ff-style-preview::-webkit-scrollbar-thumb,
 
 /* Preview: always paint the chosen thumb colour */
 .modal.sf-text-style-modal .ff-style-preview.sf-editor-scrollbar::-webkit-scrollbar-thumb {
-	background-color: var(--sf-editor-scrollbar-thumb, var(--scrollbar-thumb-bg, #6b7280)) !important;
+	background-color: var(--sf-editor-scrollbar-thumb, var(--scrollbar-thumb-bg, #6b7280));
 }
 
 /* Editor: reveal on hovering the scroller */
@@ -732,6 +732,6 @@ body.sf-editor-scrollbar .markdown-source-view .cm-scroller:hover::-webkit-scrol
 body.sf-editor-scrollbar .markdown-source-view .cm-scroller:active::-webkit-scrollbar-thumb,
 body.sf-editor-scrollbar .markdown-preview-view:hover::-webkit-scrollbar-thumb,
 body.sf-editor-scrollbar .markdown-preview-view:active::-webkit-scrollbar-thumb {
-	background-color: var(--sf-editor-scrollbar-thumb, var(--scrollbar-active-thumb-bg, #6b7280)) !important;
+	background-color: var(--sf-editor-scrollbar-thumb, var(--scrollbar-active-thumb-bg, #6b7280));
 }
 

@@ -42,6 +42,7 @@ function buildEditorStyleVars(s: FormatForgeSettings): Record<string, string | n
 	vars["--sf-body-bold-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextBoldColor : null;
 	vars["--sf-body-italic-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextItalicColor : null;
 	vars["--sf-body-link-color"] = s.bodyLinkOverrideColor ? s.bodyLinkColor : null;
+	vars["--sf-body-link-color-hover"] = s.bodyLinkOverrideColor ? s.bodyLinkHoverColor : null;
 	vars["--sf-body-link-decoration"] = s.bodyLinkRemoveUnderline ? "none" : null;
 	vars["--sf-body-highlight-bg"] = s.bodyHighlightOverride ? s.bodyHighlightBgColor : null;
 	vars["--sf-body-highlight-color"] = s.bodyHighlightOverride ? s.bodyHighlightTextColor : null;
@@ -154,10 +155,6 @@ describe("formatForge font catalog stress", () => {
 		try {
 			for (let d = 0; d < 25; d++) {
 				const added: FakeFontFace[] = [];
-				const styleEl = {
-					id: "",
-					textContent: "",
-				};
 				const doc = {
 					defaultView: { FontFace: FakeFontFace },
 					fonts: {
@@ -165,9 +162,6 @@ describe("formatForge font catalog stress", () => {
 							added.push(face);
 						},
 					},
-					getElementById: () => null,
-					createElement: () => styleEl,
-					head: { appendChild: () => styleEl },
 				} as unknown as Document;
 				await registerCustomFontFaces(doc);
 				const firstCount = added.length;
@@ -175,7 +169,6 @@ describe("formatForge font catalog stress", () => {
 				expect(firstCount).toBeGreaterThanOrEqual(20);
 				expect(added.length).toBe(firstCount);
 				expect(added.every((f) => typeof f.source === "string" && f.source.includes("blob:"))).toBe(true);
-				expect(styleEl.textContent).toContain("@font-face");
 			}
 		} finally {
 			g.FontFace = prevFontFace;
@@ -239,6 +232,7 @@ describe("formatForge settings + style var stress", () => {
 			expect(vars["--sf-body-color"]).toBe(on.bodyTextColor);
 			expect(vars["--sf-body-family"]).toContain("storyForge");
 			expect(vars["--sf-body-link-color"]).toBe(on.bodyLinkColor);
+			expect(vars["--sf-body-link-color-hover"]).toBe(on.bodyLinkHoverColor);
 			expect(vars["--sf-body-link-decoration"]).toBe("none");
 			expect(vars["--sf-body-highlight-bg"]).toBe(on.bodyHighlightBgColor);
 			expect(vars["--sf-body-highlight-color"]).toBe(on.bodyHighlightTextColor);
