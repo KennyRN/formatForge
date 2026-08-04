@@ -203,13 +203,6 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 	},
 ];
 
-/** Plugin directory (set from main on load) for reading `fonts/*.woff2` on disk. */
-let fontPluginDir: string | null = null;
-
-export function setFontPluginDir(dir: string | undefined): void {
-	fontPluginDir = dir && dir.length > 0 ? dir : null;
-}
-
 const fontFacesRegisteredFor = new WeakSet<Document>();
 const FONT_STYLE_ID = "formatforge-font-faces";
 
@@ -220,22 +213,6 @@ function base64ToUint8Array(base64: string): Uint8Array {
 	return bytes;
 }
 
-function readFaceBytes(face: CustomFontFace): Uint8Array {
-	if (fontPluginDir) {
-		try {
-			// Desktop Obsidian — prefer real files over giant data URLs / in-memory decode.
-			const fs = require("fs") as typeof import("fs");
-			const path = require("path") as typeof import("path");
-			const fullPath = path.join(fontPluginDir, "fonts", face.fileName);
-			const buf = fs.readFileSync(fullPath);
-			return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-		} catch {
-			// Fall through to embedded base64.
-		}
-	}
-	return base64ToUint8Array(face.base64);
-}
-
 function mimeForFormat(format: CustomFontFace["format"]): string {
 	if (format === "woff2") return "font/woff2";
 	if (format === "truetype") return "font/ttf";
@@ -244,7 +221,7 @@ function mimeForFormat(format: CustomFontFace["format"]): string {
 
 /**
  * Registers every embedded custom font into `doc` via blob-URL `@font-face` rules and the
- * FontFace API. Idempotent per document. Prefer on-disk `fonts/` files when the plugin dir is set.
+ * FontFace API. Idempotent per document.
  */
 export async function registerCustomFontFaces(doc: Document): Promise<void> {
 	if (fontFacesRegisteredFor.has(doc)) return;
@@ -254,9 +231,7 @@ export async function registerCustomFontFaces(doc: Document): Promise<void> {
 
 	let styleEl = doc.getElementById(FONT_STYLE_ID) as HTMLStyleElement | null;
 	if (!styleEl) {
-		styleEl = doc.createElement("style");
-		styleEl.id = FONT_STYLE_ID;
-		doc.head.appendChild(styleEl);
+		styleEl = doc.head.createEl("style", { attr: { id: FONT_STYLE_ID } });
 	}
 
 	const FontFaceCtor = win.FontFace;
@@ -267,7 +242,7 @@ export async function registerCustomFontFaces(doc: Document): Promise<void> {
 		const rangeDescriptor = font.weightMin === font.weightMax ? `${font.weightMin}` : `${font.weightMin} ${font.weightMax}`;
 		for (const face of font.faces) {
 			const weightDescriptor = face.weight != null ? `${face.weight}` : rangeDescriptor;
-			const bytes = readFaceBytes(face);
+			const bytes = base64ToUint8Array(face.base64);
 			const blob = new Blob([bytes as BlobPart], { type: mimeForFormat(face.format) });
 			const url = URL.createObjectURL(blob);
 

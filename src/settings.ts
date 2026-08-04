@@ -54,6 +54,7 @@ export interface FormatForgeSettings {
 	bodyTextItalicColor: string;
 	bodyLinkOverrideColor: boolean;
 	bodyLinkColor: string;
+	bodyLinkHoverColor: string;
 	bodyLinkRemoveUnderline: boolean;
 	bodyHighlightOverride: boolean;
 	bodyHighlightBgColor: string;
@@ -168,6 +169,7 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	bodyTextItalicColor: "#c8c8c8",
 	bodyLinkOverrideColor: false,
 	bodyLinkColor: "#7eb8da",
+	bodyLinkHoverColor: "#a8d4ef",
 	bodyLinkRemoveUnderline: false,
 	bodyHighlightOverride: false,
 	bodyHighlightBgColor: "#e0af68",

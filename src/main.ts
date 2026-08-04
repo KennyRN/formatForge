@@ -10,7 +10,7 @@ import {
 import { softConnectWithRetry } from "./hostConnectRetry";
 import { getSfFormattingApi, type SfFormattingApi, type SfPaletteColor, type SfPaletteName } from "./storyforgeBridge";
 import { getTfFormattingApi, type TfFormattingApi } from "./timelineForgeBridge";
-import { CUSTOM_FONTS, registerCustomFontFaces, resolveCustomFontFamilyParts, setFontPluginDir } from "./fonts";
+import { CUSTOM_FONTS, registerCustomFontFaces, resolveCustomFontFamilyParts } from "./fonts";
 import { FormatForgeSettingsTab } from "./view/FormatForgeSettingsTab";
 import type { FontCardHost } from "./view/styleModalHelpers";
 
@@ -22,7 +22,6 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	private unregisterTimelineCompanion: (() => void) | null = null;
 
 	async onload(): Promise<void> {
-		setFontPluginDir(this.manifest.dir);
 		await this.loadSettings();
 
 		this.addSettingTab(new FormatForgeSettingsTab(this.app, this));
@@ -113,6 +112,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		vars["--sf-body-bold-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextBoldColor : null;
 		vars["--sf-body-italic-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextItalicColor : null;
 		vars["--sf-body-link-color"] = s.bodyLinkOverrideColor ? s.bodyLinkColor : null;
+		vars["--sf-body-link-color-hover"] = s.bodyLinkOverrideColor ? s.bodyLinkHoverColor : null;
 		vars["--sf-body-link-decoration"] = s.bodyLinkRemoveUnderline ? "none" : null;
 		vars["--sf-body-highlight-bg"] = s.bodyHighlightOverride ? s.bodyHighlightBgColor : null;
 		vars["--sf-body-highlight-color"] = s.bodyHighlightOverride ? s.bodyHighlightTextColor : null;
@@ -157,7 +157,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		if (this.sfApi) {
 			this.sfApi.setStyleVars(vars);
 			for (const doc of this.sfApi.getStyleDocuments()) {
-				registerCustomFontFaces(doc);
+				void registerCustomFontFaces(doc);
 			}
 			this.applyStyleVarsToPreviews(vars);
 			this.applyEditorScrollbarStyles();
@@ -166,7 +166,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 		this.applyStyleVarsLocally(vars);
 		for (const doc of this.getLocalStyleDocuments()) {
-			registerCustomFontFaces(doc);
+			void registerCustomFontFaces(doc);
 		}
 		this.applyStyleVarsToPreviews(vars);
 		this.applyEditorScrollbarStyles();
@@ -375,6 +375,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			"-border-top",
 			"-border-bottom",
 			"-link-color",
+			"-link-color-hover",
 			"-link-decoration",
 			"-highlight-bg",
 			"-highlight-color",
@@ -413,11 +414,13 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 					if (!font) return null;
 					return resolveCustomFontFamilyParts(font, weight);
 				},
-				registerFacesForDocument: (doc) => registerCustomFontFaces(doc),
+				registerFacesForDocument: (doc) => {
+					void registerCustomFontFaces(doc);
+				},
 			});
 
 			for (const doc of sfApi.getStyleDocuments()) {
-				registerCustomFontFaces(doc);
+				void registerCustomFontFaces(doc);
 			}
 
 			this.applyEditorStyles();
@@ -457,7 +460,9 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 					if (!font) return null;
 					return resolveCustomFontFamilyParts(font, weight);
 				},
-				registerFacesForDocument: (doc) => registerCustomFontFaces(doc),
+				registerFacesForDocument: (doc) => {
+					void registerCustomFontFaces(doc);
+				},
 				listFonts: () =>
 					CUSTOM_FONTS.map((f) => ({
 						id: f.id,
@@ -476,11 +481,11 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 					});
 				},
 				onHostStylesApplied: () => {
-					registerCustomFontFaces(document);
+					void registerCustomFontFaces(document);
 				},
 			});
 
-			registerCustomFontFaces(document);
+			void registerCustomFontFaces(document);
 			return true;
 		};
 

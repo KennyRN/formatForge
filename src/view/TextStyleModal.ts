@@ -1,7 +1,7 @@
 import { App, Modal, Setting, SettingGroup, ToggleComponent } from "obsidian";
 import type FormatForgePlugin from "../main";
 import { registerCustomFontFaces } from "../fonts";
-import type { EditorScrollbarThickness, FormatForgeSettings } from "../settings";
+import type { FormatForgeSettings } from "../settings";
 import type { SfFormattingApi } from "../storyforgeBridge";
 import {
 	bindColorSwatchButton,
@@ -392,7 +392,7 @@ export class TextStyleModal extends Modal {
 						.setDisplayFormat((value) => EDITOR_SCROLLBAR_THICKNESS_LABELS[Math.round(value)] ?? "Thick")
 						.onChange((value) => {
 							const idx = Math.round(value);
-							const thickness = (EDITOR_SCROLLBAR_THICKNESS_ORDER[idx] ?? "thick") as EditorScrollbarThickness;
+							const thickness = EDITOR_SCROLLBAR_THICKNESS_ORDER[idx] ?? "thick";
 							setting.setDesc(`${EDITOR_SCROLLBAR_THICKNESS_LABELS[idx] ?? "Thick"} — thin · medium · thick.`);
 							void this.plugin.updateEditorScrollbar({ thickness });
 						}),
@@ -565,8 +565,19 @@ export class TextStyleModal extends Modal {
 			);
 		});
 
+		let linkHoverColorSetting!: Setting;
+		card.addSetting((setting) => {
+			linkHoverColorSetting = setting;
+			setting.setName("Hovered link colour").addButton((button) =>
+				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, settings.bodyLinkHoverColor, (hex) => {
+					void this.plugin.updateSetting("bodyLinkHoverColor", hex).then(() => restyle());
+				}),
+			);
+		});
+
 		const applyColorVisibility = (hidden: boolean) => {
 			linkColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
+			linkHoverColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
 		};
 		colorToggle.onChange((value) => {
 			void this.plugin.updateSetting("bodyLinkOverrideColor", value).then(() => {
