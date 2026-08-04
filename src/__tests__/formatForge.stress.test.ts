@@ -155,22 +155,11 @@ describe("formatForge font catalog stress", () => {
 		try {
 			for (let d = 0; d < 25; d++) {
 				const added: FakeFontFace[] = [];
-				const styleEl = {
-					id: "",
-					textContent: "",
-				};
 				const doc = {
 					defaultView: { FontFace: FakeFontFace },
 					fonts: {
 						add(face: FakeFontFace) {
 							added.push(face);
-						},
-					},
-					getElementById: () => null,
-					head: {
-						createEl(_tag: string, opts?: { attr?: { id?: string } }) {
-							if (opts?.attr?.id) styleEl.id = opts.attr.id;
-							return styleEl;
 						},
 					},
 				} as unknown as Document;
@@ -180,7 +169,6 @@ describe("formatForge font catalog stress", () => {
 				expect(firstCount).toBeGreaterThanOrEqual(20);
 				expect(added.length).toBe(firstCount);
 				expect(added.every((f) => typeof f.source === "string" && f.source.includes("blob:"))).toBe(true);
-				expect(styleEl.textContent).toContain("@font-face");
 			}
 		} finally {
 			g.FontFace = prevFontFace;

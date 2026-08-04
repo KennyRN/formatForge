@@ -204,7 +204,6 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 ];
 
 const fontFacesRegisteredFor = new WeakSet<Document>();
-const FONT_STYLE_ID = "formatforge-font-faces";
 
 function base64ToUint8Array(base64: string): Uint8Array {
 	const binary = atob(base64);
@@ -220,8 +219,8 @@ function mimeForFormat(format: CustomFontFace["format"]): string {
 }
 
 /**
- * Registers every embedded custom font into `doc` via blob-URL `@font-face` rules and the
- * FontFace API. Idempotent per document.
+ * Registers every embedded custom font into `doc` via the FontFace API
+ * (blob URLs from embedded base64). Idempotent per document.
  */
 export async function registerCustomFontFaces(doc: Document): Promise<void> {
 	if (fontFacesRegisteredFor.has(doc)) return;
@@ -229,13 +228,7 @@ export async function registerCustomFontFaces(doc: Document): Promise<void> {
 	const win = doc.defaultView;
 	if (!win) return;
 
-	let styleEl = doc.getElementById(FONT_STYLE_ID) as HTMLStyleElement | null;
-	if (!styleEl) {
-		styleEl = doc.head.createEl("style", { attr: { id: FONT_STYLE_ID } });
-	}
-
 	const FontFaceCtor = win.FontFace;
-	const cssChunks: string[] = [];
 	const loads: Promise<FontFace>[] = [];
 
 	for (const font of CUSTOM_FONTS) {
@@ -246,10 +239,6 @@ export async function registerCustomFontFaces(doc: Document): Promise<void> {
 			const blob = new Blob([bytes as BlobPart], { type: mimeForFormat(face.format) });
 			const url = URL.createObjectURL(blob);
 
-			cssChunks.push(
-				`@font-face{font-family:"${font.cssFontFamily}";src:url("${url}") format("${face.format}");font-weight:${weightDescriptor};font-style:${face.style};font-display:swap;}`,
-			);
-
 			try {
 				const fontFace = new FontFaceCtor(font.cssFontFamily, `url(${url})`, {
 					weight: weightDescriptor,
@@ -258,12 +247,11 @@ export async function registerCustomFontFaces(doc: Document): Promise<void> {
 				doc.fonts.add(fontFace);
 				loads.push(fontFace.load().catch(() => fontFace));
 			} catch {
-				// CSS @font-face above still applies.
+				// Skip faces the runtime cannot construct.
 			}
 		}
 	}
 
-	styleEl.textContent = cssChunks.join("\n");
 	await Promise.all(loads);
 	fontFacesRegisteredFor.add(doc);
 }
