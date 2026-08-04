@@ -337,6 +337,41 @@
 	user-select: none;
 }
 
+.ff-ui-style-preview .sf-right-rail-preview {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 12px;
+	pointer-events: none;
+	user-select: none;
+}
+
+.ff-ui-style-preview .sf-right-rail-preview .sf-forge-view {
+	min-height: 0;
+	height: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 8px;
+}
+
+.ff-ui-style-preview .sf-right-rail-preview .sf-forge-view__panel {
+	display: none;
+}
+
+.ff-ui-style-preview .sf-right-rail-preview .sf-recommend-view,
+.ff-ui-style-preview .sf-right-rail-preview .sf-archive-view {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 10px;
+}
+
+/* Nested tabs inside storyForge interface modal */
+.sf-text-style-tab-body > .sf-text-style-tab-body-wrapper {
+	height: auto;
+	overflow: visible;
+	flex: none;
+}
+
 /* Text styling preview: cycling guide mid-manuscript (uses storyForge --sf-cg-* vars) */
 .ff-style-preview .ff-style-preview-cg {
 	position: relative;

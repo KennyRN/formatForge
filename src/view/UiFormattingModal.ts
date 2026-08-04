@@ -2,7 +2,7 @@ import { App, Modal, Setting, SettingGroup, ToggleComponent } from "obsidian";
 import type FormatForgePlugin from "../main";
 import type { SfFormattingApi, SfLinkedFormattingKey } from "../storyforgeBridge";
 import { bindColorSwatchButton, bindExclusivePair, renderCustomFontCard, renderTabbedBody, type FontCardHost, type StyleModalTab } from "./styleModalHelpers";
-import { mountUiStylePreviewSample } from "./uiStylePreviewSample";
+import { mountRightSidebarPreviewSample, mountUiStylePreviewSample } from "./uiStylePreviewSample";
 
 /**
  * Wraps the SF formatting API so `renderCustomFontCard` can write linked settings
@@ -72,9 +72,12 @@ export class UiFormattingModal extends Modal {
 		const previewPane = layout.createDiv({ cls: "ff-style-preview-pane" });
 		previewPane.createDiv({ cls: "ff-style-preview-label", text: "Preview" });
 		const preview = previewPane.createDiv({ cls: "ff-style-preview ff-ui-style-preview" });
-		mountUiStylePreviewSample(preview);
+		const leftPreview = preview.createDiv();
+		const rightPreview = preview.createDiv({ cls: "sf-settings-hidden" });
+		mountUiStylePreviewSample(leftPreview);
+		mountRightSidebarPreviewSample(rightPreview);
 
-		const tabs: StyleModalTab[] = [
+		const panelTabs: StyleModalTab[] = [
 			{
 				id: "guides",
 				label: "Guides",
@@ -136,7 +139,43 @@ export class UiFormattingModal extends Modal {
 			},
 		];
 
-		renderTabbedBody(controls, tabs);
+		const rightTabs: StyleModalTab[] = [
+			{
+				id: "forge",
+				label: "Forge",
+				render: (body) => this.renderForgePanelContent(body, s, sfApi),
+			},
+			{
+				id: "story-context",
+				label: "Story Context",
+				render: (body) => this.renderRightRailPanelContent(body, s, sfApi, "recommend"),
+			},
+			{
+				id: "archive",
+				label: "Archive",
+				render: (body) => this.renderRightRailPanelContent(body, s, sfApi, "archive"),
+			},
+		];
+
+		const outerTabs: StyleModalTab[] = [
+			{
+				id: "storyforge-panel",
+				label: "storyForge panel",
+				render: (body) => renderTabbedBody(body, panelTabs),
+			},
+			{
+				id: "right-sidebar",
+				label: "Right sidebar",
+				render: (body) => renderTabbedBody(body, rightTabs),
+			},
+		];
+
+		renderTabbedBody(controls, outerTabs, {
+			onActivate: (id) => {
+				leftPreview.toggleClass("sf-settings-hidden", id !== "storyforge-panel");
+				rightPreview.toggleClass("sf-settings-hidden", id !== "right-sidebar");
+			},
+		});
 	}
 
 	private renderHighlightGroup(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi): void {
@@ -665,6 +704,201 @@ export class UiFormattingModal extends Modal {
 			});
 		});
 		applyUseHeaderColorVisibility(s.codexUseHeaderColorForAll as boolean);
+	}
+
+	private renderForgePanelContent(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi): void {
+		const group = new SettingGroup(body);
+		group.addSetting((setting) => {
+			setting
+				.setName("Companion icon colour")
+				.setDesc("Colour of companion icons in the Forge sidebar tab.")
+				.addButton((button) =>
+					bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.forgeCompanionIconColor as string, (hex) => {
+						void sfApi.updateLinkedSetting("forgeCompanionIconColor", hex);
+					}),
+				);
+		});
+	}
+
+	private renderRightRailHeaderStyleGroup(
+		body: HTMLElement,
+		s: Record<string, unknown>,
+		sfApi: SfFormattingApi,
+		config: {
+			sizeKey: SfLinkedFormattingKey;
+			colorKey: SfLinkedFormattingKey;
+			mutedKey: SfLinkedFormattingKey;
+			smallCapsKey: SfLinkedFormattingKey;
+			useHeaderColorForAllKey: SfLinkedFormattingKey;
+		},
+	): ToggleComponent {
+		const group = new SettingGroup(body);
+		let useHeaderColorForAllToggle!: ToggleComponent;
+		group
+			.addSetting((setting) => {
+				setting
+					.setName("Header size")
+					.setDesc("Size of header label and icon.")
+					.addSlider((slider) =>
+						slider
+							.setLimits(0.5, 1.5, 0.1)
+							.setValue(s[config.sizeKey] as number)
+							.onChange((value) => void sfApi.updateLinkedSetting(config.sizeKey, value)),
+					);
+			})
+			.addSetting((setting) => {
+				setting
+					.setName("Header colour")
+					.addButton((button) =>
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s[config.colorKey] as string, (hex) => {
+							void sfApi.updateLinkedSetting(config.colorKey, hex);
+						}),
+					);
+			})
+			.addSetting((setting) => {
+				setting
+					.setName("Use header colour for all colour options")
+					.setDesc("Use the header colour everywhere below instead of picking separate colours.")
+					.addToggle((toggle) => {
+						useHeaderColorForAllToggle = toggle;
+						toggle.setValue(s[config.useHeaderColorForAllKey] as boolean);
+					});
+			})
+			.addSetting((setting) => {
+				setting
+					.setName("Muted")
+					.setDesc("Override header colour with muted colour.")
+					.addToggle((toggle) =>
+						toggle
+							.setValue(s[config.mutedKey] as boolean)
+							.onChange((value) => void sfApi.updateLinkedSetting(config.mutedKey, value)),
+					);
+			})
+			.addSetting((setting) => {
+				setting
+					.setName("Small caps")
+					.addToggle((toggle) =>
+						toggle
+							.setValue(s[config.smallCapsKey] as boolean)
+							.onChange((value) => void sfApi.updateLinkedSetting(config.smallCapsKey, value)),
+					);
+				setting.nameEl.addClass("sf-small-caps-label");
+			});
+		return useHeaderColorForAllToggle;
+	}
+
+	private renderRightRailPanelContent(
+		body: HTMLElement,
+		s: Record<string, unknown>,
+		sfApi: SfFormattingApi,
+		panel: "recommend" | "archive",
+	): void {
+		const keys =
+			panel === "recommend"
+				? {
+						sizeKey: "recommendHeaderFontSize" as const,
+						colorKey: "recommendHeaderColor" as const,
+						mutedKey: "recommendHeaderMuted" as const,
+						smallCapsKey: "recommendHeaderSmallCaps" as const,
+						useHeaderColorForAllKey: "recommendUseHeaderColorForAll" as const,
+						itemsSizeKey: "recommendItemsFontSize" as const,
+						itemsColorKey: "recommendItemsColor" as const,
+						itemsMutedKey: "recommendItemsMuted" as const,
+						highlightColorKey: "recommendHighlightColor" as const,
+						highlightTextColorKey: "recommendHighlightTextColor" as const,
+						itemsLabel: "Story Context items",
+					}
+				: {
+						sizeKey: "archiveHeaderFontSize" as const,
+						colorKey: "archiveHeaderColor" as const,
+						mutedKey: "archiveHeaderMuted" as const,
+						smallCapsKey: "archiveHeaderSmallCaps" as const,
+						useHeaderColorForAllKey: "archiveUseHeaderColorForAll" as const,
+						itemsSizeKey: "archiveItemsFontSize" as const,
+						itemsColorKey: "archiveItemsColor" as const,
+						itemsMutedKey: "archiveItemsMuted" as const,
+						highlightColorKey: "archiveHighlightColor" as const,
+						highlightTextColorKey: "archiveHighlightTextColor" as const,
+						itemsLabel: "Archive items",
+					};
+
+		const useHeaderColorToggle = this.renderRightRailHeaderStyleGroup(body, s, sfApi, {
+			sizeKey: keys.sizeKey,
+			colorKey: keys.colorKey,
+			mutedKey: keys.mutedKey,
+			smallCapsKey: keys.smallCapsKey,
+			useHeaderColorForAllKey: keys.useHeaderColorForAllKey,
+		});
+
+		const itemsGroup = new SettingGroup(body);
+		let itemsColourSetting!: Setting;
+		itemsGroup
+			.addSetting((setting) => {
+				setting
+					.setName(keys.itemsLabel)
+					.setDesc("Text size of list items, from 0.5em to 1.5em.")
+					.addSlider((slider) =>
+						slider
+							.setLimits(0.5, 1.5, 0.1)
+							.setValue(s[keys.itemsSizeKey] as number)
+							.onChange((value) => void sfApi.updateLinkedSetting(keys.itemsSizeKey, value)),
+					);
+			})
+			.addSetting((setting) => {
+				itemsColourSetting = setting;
+				setting
+					.setName(`${keys.itemsLabel} colour`)
+					.addButton((button) =>
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s[keys.itemsColorKey] as string, (hex) => {
+							void sfApi.updateLinkedSetting(keys.itemsColorKey, hex);
+						}),
+					);
+			})
+			.addSetting((setting) => {
+				setting
+					.setName("Muted")
+					.setDesc("Override colour with muted colour.")
+					.addToggle((toggle) =>
+						toggle
+							.setValue(s[keys.itemsMutedKey] as boolean)
+							.onChange((value) => void sfApi.updateLinkedSetting(keys.itemsMutedKey, value)),
+					);
+			});
+
+		const highlightGroup = new SettingGroup(body);
+		let highlightColourSetting!: Setting;
+		highlightGroup
+			.addSetting((setting) => {
+				highlightColourSetting = setting;
+				setting
+					.setName("Highlight colour")
+					.setDesc("Background colour for the selected item.")
+					.addButton((button) =>
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s[keys.highlightColorKey] as string, (hex) => {
+							void sfApi.updateLinkedSetting(keys.highlightColorKey, hex);
+						}),
+					);
+			})
+			.addSetting((setting) => {
+				setting
+					.setName("Highlight text colour")
+					.addButton((button) =>
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s[keys.highlightTextColorKey] as string, (hex) => {
+							void sfApi.updateLinkedSetting(keys.highlightTextColorKey, hex);
+						}),
+					);
+			});
+
+		const applyUseHeaderColorVisibility = (hidden: boolean) => {
+			itemsColourSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
+			highlightColourSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
+		};
+		useHeaderColorToggle.onChange((value) => {
+			void sfApi.updateLinkedSetting(keys.useHeaderColorForAllKey, value).then(() => {
+				applyUseHeaderColorVisibility(value);
+			});
+		});
+		applyUseHeaderColorVisibility(s[keys.useHeaderColorForAllKey] as boolean);
 	}
 
 	private renderSeriesPaneContent(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi): void {

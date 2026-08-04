@@ -18,7 +18,11 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	private ffSettings: FormatForgeSettings = { ...DEFAULT_SETTINGS };
 	private sfApi: SfFormattingApi | null = null;
 	private tfApi: TfFormattingApi | null = null;
+	/** Identity of the last storyForge API object we registered against (hot-reload detect). */
+	private storyForgeApiRef: SfFormattingApi | null = null;
+	private timelineForgeApiRef: TfFormattingApi | null = null;
 	private unregisterCompanion: (() => void) | null = null;
+	private unregisterViewContribution: (() => void) | null = null;
 	private unregisterTimelineCompanion: (() => void) | null = null;
 
 	async onload(): Promise<void> {
@@ -38,10 +42,14 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	onunload(): void {
 		this.unregisterCompanion?.();
 		this.unregisterCompanion = null;
+		this.unregisterViewContribution?.();
+		this.unregisterViewContribution = null;
 		this.unregisterTimelineCompanion?.();
 		this.unregisterTimelineCompanion = null;
 		this.sfApi = null;
 		this.tfApi = null;
+		this.storyForgeApiRef = null;
+		this.timelineForgeApiRef = null;
 		this.clearEditorScrollbarStyles();
 		this.clearLocalStyleVars();
 	}
@@ -394,11 +402,34 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 	private connectToStoryForge(): void {
 		const tryConnect = (): boolean => {
-			if (this.unregisterCompanion) return true;
 			const sfApi = getSfFormattingApi(this.app);
-			if (!sfApi) return false;
+			if (!sfApi) {
+				this.unregisterCompanion = null;
+				this.unregisterViewContribution = null;
+				this.sfApi = null;
+				this.storyForgeApiRef = null;
+				return false;
+			}
+
+			// Already bound to this host instance — leave styles alone.
+			if (this.unregisterCompanion && this.storyForgeApiRef === sfApi) {
+				return true;
+			}
+
+			// Host hot-reloaded (or first connect): drop stale disposers and rebind.
+			try {
+				this.unregisterCompanion?.();
+			} catch {
+				/* old host may already be dead */
+			}
+			try {
+				this.unregisterViewContribution?.();
+			} catch {
+				/* old host may already be dead */
+			}
 
 			this.sfApi = sfApi;
+			this.storyForgeApiRef = sfApi;
 
 			this.unregisterCompanion = sfApi.registerCompanion({
 				pluginId: "formatforge",
@@ -423,9 +454,10 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 				void registerCustomFontFaces(doc);
 			}
 
+			// Re-apply after host clearAll()+reload wiped --sf-* editor vars.
 			this.applyEditorStyles();
 
-			sfApi.registerViewContribution({
+			this.unregisterViewContribution = sfApi.registerViewContribution({
 				slot: "storyforge-panel",
 				orderHint: 50,
 				render: (_containerEl) => {
@@ -447,11 +479,26 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 	private connectToTimelineForge(): void {
 		const tryConnect = (): boolean => {
-			if (this.unregisterTimelineCompanion) return true;
 			const tfApi = getTfFormattingApi(this.app);
-			if (!tfApi) return false;
+			if (!tfApi) {
+				this.unregisterTimelineCompanion = null;
+				this.tfApi = null;
+				this.timelineForgeApiRef = null;
+				return false;
+			}
+
+			if (this.unregisterTimelineCompanion && this.timelineForgeApiRef === tfApi) {
+				return true;
+			}
+
+			try {
+				this.unregisterTimelineCompanion?.();
+			} catch {
+				/* old host may already be dead */
+			}
 
 			this.tfApi = tfApi;
+			this.timelineForgeApiRef = tfApi;
 			this.unregisterTimelineCompanion = tfApi.registerCompanion({
 				pluginId: "formatforge",
 				version: 1,
@@ -489,7 +536,6 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			return true;
 		};
 
-		// timelineForge may finish loading after us — keep retrying for a while.
 		softConnectWithRetry(tryConnect, {
 			registerInterval: (id) => this.registerInterval(id),
 			onLayoutChange: (cb) => {

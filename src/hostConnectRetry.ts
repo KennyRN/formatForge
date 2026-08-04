@@ -1,31 +1,25 @@
 /**
- * Soft-connect retry for optional Forge hosts that may finish loading after us.
- * Shared by storyForge and timelineForge companion registration.
+ * Soft-connect retry for optional Forge hosts that may finish loading after us,
+ * and may hot-reload later (new `api` object). Keeps a keepalive poll so disconnect /
+ * host reload is detected even when layout-change does not fire again.
  */
 export function softConnectWithRetry(
 	tryConnect: () => boolean,
 	opts: {
 		registerInterval: (id: number) => number;
 		onLayoutChange: (cb: () => void) => void;
-		maxAttempts?: number;
+		/** Keepalive / hunt interval. Default 1000ms. */
 		intervalMs?: number;
 		setIntervalFn?: typeof setInterval;
-		clearIntervalFn?: typeof clearInterval;
 	},
 ): void {
-	if (tryConnect()) return;
-
-	const maxAttempts = opts.maxAttempts ?? 120;
-	const intervalMs = opts.intervalMs ?? 500;
+	const intervalMs = opts.intervalMs ?? 1000;
 	const setIntervalFn = opts.setIntervalFn ?? window.setInterval.bind(window);
-	const clearIntervalFn = opts.clearIntervalFn ?? window.clearInterval.bind(window);
 
-	let attempts = 0;
+	tryConnect();
+
 	const handle = setIntervalFn(() => {
-		attempts += 1;
-		if (tryConnect() || attempts >= maxAttempts) {
-			clearIntervalFn(handle);
-		}
+		tryConnect();
 	}, intervalMs);
 	opts.registerInterval(handle as unknown as number);
 

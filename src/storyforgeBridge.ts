@@ -127,7 +127,28 @@ export type SfLinkedFormattingKey =
 	| "cyclingGuideRoundedLines"
 	| "cyclingGuideInterval"
 	| "editorScrollbarThumbColor"
-	| "editorScrollbarThickness";
+	| "editorScrollbarThickness"
+	| "forgeCompanionIconColor"
+	| "recommendHeaderFontSize"
+	| "recommendHeaderColor"
+	| "recommendHeaderMuted"
+	| "recommendHeaderSmallCaps"
+	| "recommendItemsFontSize"
+	| "recommendItemsColor"
+	| "recommendItemsMuted"
+	| "recommendHighlightColor"
+	| "recommendHighlightTextColor"
+	| "recommendUseHeaderColorForAll"
+	| "archiveHeaderFontSize"
+	| "archiveHeaderColor"
+	| "archiveHeaderMuted"
+	| "archiveHeaderSmallCaps"
+	| "archiveItemsFontSize"
+	| "archiveItemsColor"
+	| "archiveItemsMuted"
+	| "archiveHighlightColor"
+	| "archiveHighlightTextColor"
+	| "archiveUseHeaderColorForAll";
 
 // ── Formatting API surface ─────────────────────────────────────────────────
 

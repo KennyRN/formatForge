@@ -349,12 +349,10 @@ describe("formatForge storyForge bridge stress", () => {
 			timers.set(id, cb);
 			return id as unknown as ReturnType<typeof setInterval>;
 		}) as typeof setInterval;
-		const clearIntervalFn = ((id: ReturnType<typeof setInterval>) => {
-			timers.delete(id as unknown as number);
-		}) as typeof clearInterval;
 
 		let lookupCount = 0;
 		let unregisterCompanion: (() => void) | null = null;
+		let apiRef: SfFormattingApi | null = null;
 		const registerCompanion = vi.fn(() => {
 			const dispose = () => undefined;
 			return dispose;
@@ -374,13 +372,18 @@ describe("formatForge storyForge bridge stress", () => {
 		};
 
 		const tryConnect = (): boolean => {
-			if (unregisterCompanion) return true;
 			const sfApi = getApi();
-			if (!sfApi) return false;
+			if (!sfApi) {
+				unregisterCompanion = null;
+				apiRef = null;
+				return false;
+			}
+			if (unregisterCompanion && apiRef === sfApi) return true;
 			unregisterCompanion = sfApi.registerCompanion({
 				pluginId: "formatforge",
 				version: 1,
 			});
+			apiRef = sfApi;
 			return true;
 		};
 
@@ -396,8 +399,6 @@ describe("formatForge storyForge bridge stress", () => {
 				layoutCb = cb;
 			},
 			setIntervalFn,
-			clearIntervalFn,
-			maxAttempts: 120,
 			intervalMs: 500,
 		});
 
@@ -417,8 +418,69 @@ describe("formatForge storyForge bridge stress", () => {
 			expect.objectContaining({ pluginId: "formatforge", version: 1 }),
 		);
 		expect(unregisterCompanion).not.toBeNull();
-		// Timer cleared after success.
-		expect(timers.has(registeredIntervals[0])).toBe(false);
+		// Keepalive timer stays so host hot-reload can be detected.
+		expect(timers.has(registeredIntervals[0])).toBe(true);
+
+		vi.useRealTimers();
+	});
+
+	it("rebinds registerCompanion when storyForge api object identity changes", () => {
+		vi.useFakeTimers();
+		const timers = new Map<number, () => void>();
+		let nextId = 1;
+		const setIntervalFn = ((cb: () => void, _ms?: number) => {
+			const id = nextId++;
+			timers.set(id, cb);
+			return id as unknown as ReturnType<typeof setInterval>;
+		}) as typeof setInterval;
+
+		const makeApi = () =>
+			({
+				version: 2,
+				registerCompanion: vi.fn(() => () => undefined),
+				getStyleDocuments: () => [],
+				registerViewContribution: () => () => undefined,
+			}) as unknown as SfFormattingApi & { registerCompanion: ReturnType<typeof vi.fn> };
+
+		let currentApi: SfFormattingApi | null = makeApi();
+		let unregisterCompanion: (() => void) | null = null;
+		let apiRef: SfFormattingApi | null = null;
+
+		const tryConnect = (): boolean => {
+			const sfApi = currentApi;
+			if (!sfApi) {
+				unregisterCompanion = null;
+				apiRef = null;
+				return false;
+			}
+			if (unregisterCompanion && apiRef === sfApi) return true;
+			unregisterCompanion = sfApi.registerCompanion({
+				pluginId: "formatforge",
+				version: 1,
+			});
+			apiRef = sfApi;
+			return true;
+		};
+
+		const registeredIntervals: number[] = [];
+		softConnectWithRetry(tryConnect, {
+			registerInterval: (id) => {
+				registeredIntervals.push(id);
+				return id;
+			},
+			onLayoutChange: () => undefined,
+			setIntervalFn,
+			intervalMs: 500,
+		});
+
+		expect((currentApi as unknown as { registerCompanion: ReturnType<typeof vi.fn> }).registerCompanion).toHaveBeenCalledTimes(1);
+
+		const firstApi = currentApi!;
+		currentApi = makeApi();
+		timers.get(registeredIntervals[0])?.();
+
+		expect((firstApi as unknown as { registerCompanion: ReturnType<typeof vi.fn> }).registerCompanion).toHaveBeenCalledTimes(1);
+		expect((currentApi as unknown as { registerCompanion: ReturnType<typeof vi.fn> }).registerCompanion).toHaveBeenCalledTimes(1);
 
 		vi.useRealTimers();
 	});
