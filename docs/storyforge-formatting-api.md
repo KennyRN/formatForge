@@ -1,117 +1,121 @@
-# storyForge Formatting API (version 2)
+# storyForge Formatting API (v8)
 
-Access the API via:
+formatForge uses storyForge's host API as an optional runtime dependency. API v2
+is the formatting baseline; v8 is the current contract.
+
+## Access and compatibility
 
 ```ts
 const sf = app.plugins.getPlugin("storyforge");
-if (!sf?.api || sf.api.version < 2) return; // guard: not loaded / old version
-const formatting = sf.api.formatting; // StoryForgeFormattingApi
+if (!sf?.api || sf.api.version < 2 || !sf.api.formatting) return;
+const formatting = sf.api.formatting;
 ```
 
----
+Capabilities added after v2 are feature-detected by method presence:
 
-## registerCompanion
+| Host API | Addition |
+|---|---|
+| v2 | Companion registration, linked settings, palette and style variables |
+| v3 | Top-level companion panels |
+| v4 | Save dated formatting export |
+| v5 | List/read dated settings exports |
+| v6 | Save/list/read named formatting presets |
+| v7 | Rename/delete presets and explicit overwrite |
+| v8 | Validated batched linked updates |
+
+## Shared linked-key contract
+
+storyForge's `hostApi.ts` `LINKED_FORMATTING_KEYS` is the source of truth.
+`npm run sync:formatting-contract` in storyForge generates:
+
+`formatForge/src/storyforgeLinkedFormattingKeys.generated.ts`
+
+`npm run check:formatting-contract` verifies parity. Do not hand-edit the generated
+file. The current contract contains 197 keys.
+
+## Companion registration
 
 ```ts
-formatting.registerCompanion(reg: FormatCompanionRegistration): () => void
+const unregister = formatting.registerCompanion({
+  pluginId: "formatforge",
+  version: 1,
+  openSettings: () => {},
+  onHostStylesApplied: () => {},
+  resolveFont: (familyId, weight) => ({ family, variation }),
+  registerFacesForDocument: (doc) => {},
+});
 ```
 
-Registers formatForge as the active typography companion. Only one companion is active at a time; a new registration replaces the previous one. Returns an **unregister** function — call it in `onunload`.
-
-```ts
-interface FormatCompanionRegistration {
-  pluginId: string;           // "formatforge"
-  version: number;            // companion schema version (currently 1)
-  openSettings?: () => void;  // SF may call this to open FF settings
-  onHostStylesApplied?: () => void; // called after SF reapplies its own styles
-  resolveFont?: (familyId: string, weight: number) => { family: string; variation: string | null } | null;
-  registerFacesForDocument?: (doc: Document) => void;
-}
-```
-
-`onHostStylesApplied` fires after every SF restyle cycle. Use it to (re)apply FF-owned CSS vars via `setStyleVars`.
-
----
+Only one formatting companion is active. A new registration replaces the old
+registration. Call the returned disposer on unload.
 
 ## Linked settings
 
-SF-persisted settings that formatForge may read/write. Full key list in `src/storyforgeBridge.ts`.
-
 ```ts
-formatting.getLinkedSettings(): Record<SfLinkedFormattingKey, unknown>
-formatting.getLinkedSetting(key): unknown
-formatting.updateLinkedSetting(key, value): Promise<void>  // also triggers applyLinkedStyles()
+formatting.getLinkedSettings();
+formatting.getLinkedSetting(key);
+
+// Live single-setting edits; validates, saves and restyles.
+await formatting.updateLinkedSetting(key, value);
+
+// v8 theme/import path; validates the whole patch before one save/restyle.
+await formatting.updateLinkedSettings({
+  bodyTextSize: 1.1,
+  recommendHeaderColor: "#abcdef",
+  colorPaletteName: "Custom",
+});
 ```
 
-SF-linked keys include:
-- Palette: `colorPaletteName`, `colorPaletteVariant`, `customPaletteColors`
-- Editor sizes: `bodyTextOverrideSize`, `bodyTextSize`, `heading1OverrideSize` … `heading6Size`
-- Panel chrome: `librarySeriesTitleFontSize`, `cyclingGuideEnabled`, `editorScrollbarThickness`, …
-
----
-
-## Style application
-
-```ts
-// Apply css vars to body of main doc + every open pop-out
-formatting.setStyleVars(vars: Record<string, string | null>): void
-
-// Trigger SF's own restyle (chrome, sizes, guides, scrollbar) + notifies companion
-formatting.applyLinkedStyles(): void
-
-// Get all documents that need FontFace registration
-formatting.getStyleDocuments(): Document[]
-```
-
----
+Use `updateLinkedSettings` for bulk work. If any key or value is invalid, no key
+is written.
 
 ## Palette
 
 ```ts
-formatting.getPalette(): { name: string; variant: string; customColors: PaletteColor[] }
-formatting.updatePalette(partial: { name?, variant?, customColors? }): Promise<void>
+formatting.getPalette();
+await formatting.updatePalette({
+  name,
+  variant,
+  customColors,
+});
 ```
 
----
+At v8, `updatePalette` delegates to the same validated batched path and triggers
+one linked-style refresh.
 
-## View contributions
+## Theme storage
+
+All vault writes are owned and guarded by storyForge:
 
 ```ts
-formatting.registerViewContribution({
-  slot: "storyforge-panel",
-  orderHint?: number,
-  render: (containerEl: HTMLElement) => () => void, // returns disposer
-}): () => void
+await formatting.saveFormattingExport(json);        // _sf-backup/
+await formatting.listSettingsExports();
+await formatting.readSettingsExport(path);
+
+await formatting.saveFormattingPreset(name, json, overwrite);
+await formatting.listFormattingPresets();
+await formatting.readFormattingPreset(path);
+await formatting.renameFormattingPreset(path, newName, overwrite);
+await formatting.deleteFormattingPreset(path);
 ```
 
-Contributes UI into the storyForge left panel. Returns an unregister function.
+formatForge must not write these paths directly.
 
----
+## Style application
 
-## CSS custom properties set by formatForge
+```ts
+formatting.setStyleVars(vars);       // main document and pop-outs
+formatting.applyLinkedStyles();      // rebuild storyForge-owned CSS variables
+formatting.getStyleDocuments();      // documents requiring FontFace registration
+```
 
-formatForge calls `formatting.setStyleVars()` to apply the following vars to `document.body` (and each pop-out):
+## Ownership
 
-| Variable | Owner | Description |
-|---|---|---|
-| `--sf-body-color` | FF | Body text colour override |
-| `--sf-body-family` | FF | Body font family |
-| `--sf-body-variation` | FF | Body font-variation-settings |
-| `--sf-body-weight` | FF | Body font-weight (static fonts only) |
-| `--sf-body-bold-color` | FF | Bold emphasis colour |
-| `--sf-body-italic-color` | FF | Italic emphasis colour |
-| `--sf-body-link-color` | FF | Body link colour override |
-| `--sf-body-link-decoration` | FF | Body link underline removal (`none`) |
-| `--sf-body-highlight-bg` | FF | `==highlight==` background colour |
-| `--sf-body-highlight-color` | FF | `==highlight==` text colour |
-| `--sf-h1-color` … `--sf-h6-color` | FF | Heading colour overrides |
-| `--sf-h1-family` … `--sf-h6-family` | FF | Heading font families |
-| `--sf-h1-variation` … `--sf-h6-variation` | FF | Heading variation-settings |
-| `--sf-h1-weight` … `--sf-h6-weight` | FF | Heading weights (static fonts) |
-| `--sf-h1-variant` … `--sf-h6-variant` | FF | `small-caps` or null |
-| `--sf-h1-border-top` / `--sf-h1-border-bottom` | FF | H1 divider borders |
-| `--sf-h1-link-color` / `--sf-h1-link-decoration` | FF | H1 link hiding |
-| `--sf-body-size` | SF | Body font size override |
-| `--sf-h1-size` … `--sf-h6-size` | SF | Heading size overrides |
+| Owner | Settings |
+|---|---|
+| storyForge | Palette, panel chrome, highlights, sizes, guides and scrollbar |
+| formatForge | Editor colours, fonts, small caps, dividers and H1 link styling |
 
-All vars fall back to `revert` (= theme default) when unset.
+When formatForge is enabled, storyForge intentionally removes its formatting
+transfer UI and points users to formatForge. Standalone storyForge keeps its
+fallback Themes UI when formatForge is absent.

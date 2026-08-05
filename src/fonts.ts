@@ -203,7 +203,12 @@ export const CUSTOM_FONTS: CustomFontEntry[] = [
 	},
 ];
 
-const fontFacesRegisteredFor = new WeakSet<Document>();
+/**
+ * Keyed on the document so concurrent callers share one registration. A boolean flag set
+ * after the awaits let a second caller (pop-out open, modal open, host restyle) start a
+ * duplicate pass and add every face twice.
+ */
+const fontFaceRegistrations = new WeakMap<Document, Promise<void>>();
 
 function base64ToUint8Array(base64: string): Uint8Array {
 	const binary = atob(base64);
@@ -220,16 +225,27 @@ function mimeForFormat(format: CustomFontFace["format"]): string {
 
 /**
  * Registers every embedded custom font into `doc` via the FontFace API
- * (blob URLs from embedded base64). Idempotent per document.
+ * (blob URLs from embedded base64). Idempotent per document, and safe to call
+ * concurrently: callers arriving mid-registration await the same pass.
  */
-export async function registerCustomFontFaces(doc: Document): Promise<void> {
-	if (fontFacesRegisteredFor.has(doc)) return;
+export function registerCustomFontFaces(doc: Document): Promise<void> {
+	const inFlight = fontFaceRegistrations.get(doc);
+	if (inFlight) return inFlight;
+	const run = registerFacesNow(doc).catch(() => {
+		// Never cache a failure, so the next call can retry this document.
+		fontFaceRegistrations.delete(doc);
+	});
+	fontFaceRegistrations.set(doc, run);
+	return run;
+}
 
+async function registerFacesNow(doc: Document): Promise<void> {
 	const win = doc.defaultView;
 	if (!win) return;
 
 	const FontFaceCtor = win.FontFace;
 	const loads: Promise<FontFace>[] = [];
+	const blobUrls: string[] = [];
 
 	for (const font of CUSTOM_FONTS) {
 		const rangeDescriptor = font.weightMin === font.weightMax ? `${font.weightMin}` : `${font.weightMin} ${font.weightMax}`;
@@ -238,6 +254,7 @@ export async function registerCustomFontFaces(doc: Document): Promise<void> {
 			const bytes = base64ToUint8Array(face.base64);
 			const blob = new Blob([bytes as BlobPart], { type: mimeForFormat(face.format) });
 			const url = URL.createObjectURL(blob);
+			blobUrls.push(url);
 
 			try {
 				const fontFace = new FontFaceCtor(font.cssFontFamily, `url(${url})`, {
@@ -253,7 +270,9 @@ export async function registerCustomFontFaces(doc: Document): Promise<void> {
 	}
 
 	await Promise.all(loads);
-	fontFacesRegisteredFor.add(doc);
+	// The face data is resident once `load()` settles, so release the blobs rather than
+	// holding several MB of font bytes per document for the session.
+	for (const url of blobUrls) URL.revokeObjectURL(url);
 }
 
 export function resolveCustomFontFamilyParts(font: CustomFontEntry, requestedWeight: number): { family: string; variation: string | null } {

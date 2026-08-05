@@ -84,6 +84,64 @@
 	color: var(--text-faint);
 }
 
+/* ── Formatting export modal ───────────────────────────────────────────── */
+
+.modal.ff-formatting-export-modal {
+	width: min(90vw, 780px);
+}
+
+.ff-formatting-export-description {
+	margin-top: 0;
+	color: var(--text-muted);
+}
+
+.ff-formatting-export-text {
+	display: block;
+	width: 100%;
+	height: min(32vh, 320px);
+	resize: vertical;
+	padding: var(--size-4-3);
+	box-sizing: border-box;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.45;
+	white-space: pre;
+	tab-size: 2;
+}
+
+.ff-formatting-import-text {
+	display: block;
+	width: 100%;
+	height: min(24vh, 240px);
+	resize: vertical;
+	padding: var(--size-4-3);
+	box-sizing: border-box;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.45;
+	white-space: pre;
+	tab-size: 2;
+}
+
+.ff-formatting-section-labels,
+.ff-formatting-import-meta {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	margin: 0 0 var(--size-4-3);
+}
+
+.ff-formatting-import-preview {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	padding: var(--size-4-3);
+	margin: var(--size-4-3) 0;
+}
+
+.ff-formatting-import-preview.is-empty {
+	color: var(--text-muted);
+}
+
 /* ── Text Style / UI Formatting modal (tabbed) ─────────────────────────── */
 
 /* Wide enough for controls | live preview.

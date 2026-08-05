@@ -222,12 +222,12 @@ function mountNovelPreview(rail: HTMLElement): void {
 	fixed.createDiv({ cls: "sf-recommend-novel-subtitle", text: "Vol. I — Dolor Sit" });
 	fixed.createEl("textarea", {
 		cls: "sf-recommend-synopsis sf-recommend-novel-synopsis",
-		text: "A courier carries a sealed name across three kingdoms.",
+		text: "Julius Caesar leads his army across the Rubicon and marches toward Rome.",
 		attr: { readonly: "true", rows: "3" },
 	});
 
 	const defaultPov = fixed.createDiv({ cls: "sf-recommend-section" });
-	metaRow(defaultPov.createDiv({ cls: "sf-recommend-meta" }), "Default PoV:", "Mara Venn", ICON_PERSON);
+	metaRow(defaultPov.createDiv({ cls: "sf-recommend-meta" }), "Default PoV:", "Julius Caesar", ICON_PERSON);
 
 	const plotLine = fixed.createDiv({ cls: "sf-book-line sf-synopsis-plot-title" });
 	setIcon(plotLine.createSpan({ cls: "sf-icon" }), ICON_TIMELINE);
@@ -235,18 +235,18 @@ function mountNovelPreview(rail: HTMLElement): void {
 	plotTitleRow.createDiv({ cls: "sf-book-text-wrap" }).createSpan({ cls: "sf-header-text", text: "Plot" });
 
 	const scroll = body.createDiv({ cls: "sf-recommend-scroll" });
-	for (const [chapter, place] of [
-		["I. Amet Consectetur", "The gatehouse"],
-		["II. Adipiscing Elit", "The ford"],
+	for (const [chapter, place, summary] of [
+		["I. Amet Consectetur", "Rubicon River", "Julius Caesar leads his army across the Rubicon."],
+		["II. Adipiscing Elit", "Rome", "Mark Antony awaits Caesar's arrival in Rome."],
 	] as const) {
 		const block = scroll.createDiv({ cls: "sf-recommend-plot-block" });
 		block.createDiv({ cls: "sf-recommend-plot-chapter-name", text: chapter });
 		const meta = block.createDiv({ cls: "sf-recommend-meta" });
-		metaRow(meta, "PoV:", "Mara Venn", ICON_PERSON);
+		metaRow(meta, "PoV:", "Julius Caesar", ICON_PERSON);
 		metaRow(meta, "Location:", place, ICON_MAP_PIN);
 		block.createEl("textarea", {
 			cls: "sf-recommend-synopsis sf-recommend-plot-textarea",
-			text: "Mara reaches the ford before dawn.",
+			text: summary,
 			attr: { readonly: "true", rows: "2" },
 		});
 	}
@@ -263,7 +263,7 @@ function mountDossierPreview(rail: HTMLElement): void {
 		cls: "sf-recommend-dossier-search",
 		attr: { type: "search", readonly: "true", "aria-label": "Search Codex entity" },
 	});
-	input.value = "Mara Venn";
+	input.value = "Julius Caesar";
 	setIcon(
 		combo.createSpan({
 			cls: "sf-recommend-icon-btn sf-recommend-dossier-drop",
@@ -274,8 +274,8 @@ function mountDossierPreview(rail: HTMLElement): void {
 
 	const scroll = body.createDiv({ cls: "sf-recommend-scroll" });
 	for (const [chapter, span] of [
-		["I. Amet Consectetur", "She kept the seal under her coat."],
-		["II. Adipiscing Elit", "Her cloak was still wet from the crossing."],
+		["I. Amet Consectetur", "He strapped on his freshly polished armour."],
+		["II. Adipiscing Elit", "His cloak was still wet from the crossing."],
 	] as const) {
 		const section = scroll.createDiv({ cls: "sf-recommend-section" });
 		section.createDiv({ cls: "sf-recommend-section-title", text: chapter });
@@ -297,7 +297,7 @@ function mountChapterPreview(rail: HTMLElement): void {
 	synSection.createDiv({ cls: "sf-recommend-section-title", text: "Chapter summary" });
 	synSection.createEl("textarea", {
 		cls: "sf-recommend-synopsis",
-		text: "Mara reaches the ford before dawn.",
+		text: "Julius Caesar leads his army across the Rubicon.",
 		attr: { readonly: "true", rows: "2" },
 	});
 	const synActions = synSection.createDiv({ cls: "sf-recommend-synopsis-actions" });
@@ -305,23 +305,23 @@ function mountChapterPreview(rail: HTMLElement): void {
 	setIcon(synActions.createSpan({ cls: "sf-recommend-icon-btn", attr: { "aria-label": "add to chapter" } }), ICON_FILE_PLUS);
 
 	const meta = fixed.createDiv({ cls: "sf-recommend-meta" });
-	metaRow(meta, "PoV:", "Mara Venn", ICON_PERSON);
+	metaRow(meta, "PoV:", "Julius Caesar", ICON_PERSON);
 	metaRow(meta, "Location:", "The ford", ICON_MAP_PIN);
 
 	const charsSection = fixed.createDiv({ cls: "sf-recommend-section" });
 	charsSection.createDiv({ cls: "sf-recommend-section-title", text: "Characters in chapter" });
-	recommendRow(charsSection, "Mara Venn", ICON_PERSON);
-	recommendRow(charsSection, "Tollen", ICON_PERSON);
+	recommendRow(charsSection, "Julius Caesar", ICON_PERSON);
+	recommendRow(charsSection, "Mark Antony", ICON_PERSON);
 
 	const scroll = body.createDiv({ cls: "sf-recommend-scroll" });
 
 	const otherSection = scroll.createDiv({ cls: "sf-recommend-section" });
 	otherSection.createDiv({ cls: "sf-recommend-section-title", text: "Other Codex references" });
-	recommendRow(otherSection, "The ford", ICON_MAP_PIN);
+	recommendRow(otherSection, "Rubicon River", ICON_MAP_PIN);
 
 	const unknownSection = scroll.createDiv({ cls: "sf-recommend-section" });
 	unknownSection.createDiv({ cls: "sf-recommend-section-title", text: "Named but not in Codex" });
-	const unknownRow = recommendRow(unknownSection, "Ashen Rider");
+	const unknownRow = recommendRow(unknownSection, "Rome");
 	const unknownActions = unknownRow.createDiv({ cls: "sf-recommend-row-actions" });
 	setIcon(unknownActions.createSpan({ cls: "sf-recommend-icon-btn", attr: { "aria-label": "create in codex" } }), ICON_PLUS_SQUARE);
 	setIcon(unknownActions.createSpan({ cls: "sf-recommend-icon-btn", attr: { "aria-label": "ignore" } }), ICON_MINUS_SQUARE);
@@ -329,8 +329,8 @@ function mountChapterPreview(rail: HTMLElement): void {
 	const detailsSection = scroll.createDiv({ cls: "sf-recommend-section" });
 	detailsSection.createDiv({ cls: "sf-recommend-section-title", text: "Details to capture" });
 	const entityHeader = detailsSection.createDiv({ cls: "sf-recommend-entity-header" });
-	entityHeader.createSpan({ cls: "sf-recommend-entity-name", text: "Mara Venn" });
-	hitCard(detailsSection, "Her cloak was still wet from the crossing.", "appearance");
+	entityHeader.createSpan({ cls: "sf-recommend-entity-name", text: "Julius Caesar" });
+	hitCard(detailsSection, "His cloak was still wet from the crossing.", "appearance");
 }
 
 function mountArchivePreview(rail: HTMLElement): void {
@@ -347,8 +347,8 @@ function mountArchivePreview(rail: HTMLElement): void {
 	archTabs.createSpan({ cls: "sf-archive-view-tab", text: "Novel" });
 
 	const archList = archive.createDiv({ cls: "sf-recommend-scroll" }).createDiv({ cls: "sf-archive-list" });
-	listRow(archList, "Old Draft — Book I", true);
-	listRow(archList, "Cut scenes");
+	listRow(archList, "Old Draft: Roman Republic", true);
+	listRow(archList, "Cut scenes: Ides of March warning");
 	listRow(archList, "Research scrap");
 }
 

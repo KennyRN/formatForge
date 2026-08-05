@@ -7,8 +7,15 @@ import {
 	type EditorScrollbarThickness,
 	type FormatForgeSettings,
 } from "./settings";
+import { coerceSettings, isValidSettingValue } from "./settingsValidation";
 import { softConnectWithRetry } from "./hostConnectRetry";
-import { getSfFormattingApi, type SfFormattingApi, type SfPaletteColor, type SfPaletteName } from "./storyforgeBridge";
+import {
+	getSfFormattingApi,
+	type SfFormattingApi,
+	type SfLinkedFormattingKey,
+	type SfPaletteColor,
+	type SfPaletteName,
+} from "./storyforgeBridge";
 import { getTfFormattingApi, type TfFormattingApi } from "./timelineForgeBridge";
 import { CUSTOM_FONTS, registerCustomFontFaces, resolveCustomFontFamilyParts } from "./fonts";
 import { FormatForgeSettingsTab } from "./view/FormatForgeSettingsTab";
@@ -22,7 +29,6 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	private storyForgeApiRef: SfFormattingApi | null = null;
 	private timelineForgeApiRef: TfFormattingApi | null = null;
 	private unregisterCompanion: (() => void) | null = null;
-	private unregisterViewContribution: (() => void) | null = null;
 	private unregisterTimelineCompanion: (() => void) | null = null;
 
 	async onload(): Promise<void> {
@@ -40,17 +46,27 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	}
 
 	onunload(): void {
+		// While connected, scrollbar inline styles were written onto storyForge's document
+		// set (sfApi.getStyleDocuments()), which is not guaranteed to equal formatForge's
+		// own pop-out enumeration (getLocalStyleDocuments()). Capture it before dropping
+		// sfApi, same as the storyForge-side disconnect path, so formatForge unloading
+		// while still linked doesn't leave stale scrollbar rules behind on a window it
+		// didn't separately know about.
+		let hostDocs: Document[] = [];
+		try {
+			hostDocs = this.sfApi?.getStyleDocuments() ?? [];
+		} catch {
+			hostDocs = [];
+		}
 		this.unregisterCompanion?.();
 		this.unregisterCompanion = null;
-		this.unregisterViewContribution?.();
-		this.unregisterViewContribution = null;
 		this.unregisterTimelineCompanion?.();
 		this.unregisterTimelineCompanion = null;
 		this.sfApi = null;
 		this.tfApi = null;
 		this.storyForgeApiRef = null;
 		this.timelineForgeApiRef = null;
-		this.clearEditorScrollbarStyles();
+		this.clearEditorScrollbarStyles(hostDocs);
 		this.clearLocalStyleVars();
 	}
 
@@ -70,10 +86,70 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		await this.saveSettings();
 	}
 
+	/**
+	 * Replace formatForge-owned Text styling settings from a versioned export section.
+	 * Returns the keys that were rejected, so the caller can report a partial apply
+	 * instead of a bad value reaching the CSS variables.
+	 */
+	async importTextStylingSettings(data: unknown): Promise<string[]> {
+		if (!data || typeof data !== "object" || Array.isArray(data)) {
+			throw new Error("Text styling settings must be a JSON object");
+		}
+		const incoming = data as Record<string, unknown>;
+		// Same contract storyForge enforces on its linked keys: a bad value is dropped
+		// rather than persisted.
+		const { settings, rejected } = coerceSettings(this.ffSettings, incoming);
+		const known = Object.keys(incoming).filter((key) =>
+			Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key),
+		);
+		if (known.length > 0 && rejected.length === known.length) {
+			throw new Error(
+				`No usable text styling values (invalid: ${rejected.slice(0, 5).join(", ")})`,
+			);
+		}
+		this.ffSettings = settings;
+		await this.saveSettings();
+		this.applyEditorStyles();
+		return rejected;
+	}
+
 	// ── Typed settings access ──────────────────────────────────────────────
 
 	getTypedSettings(): FormatForgeSettings {
 		return this.ffSettings;
+	}
+
+	/**
+	 * Writes a setting storyForge owns while twinned, and keeps formatForge's own copy in
+	 * step. Sizes, palette and scrollbar exist on both sides: without the mirror, editing
+	 * them while linked and then unlinking storyForge silently reverts to the last local
+	 * value.
+	 */
+	async updateHostOwnedSetting(key: string, value: unknown): Promise<void> {
+		if (this.sfApi) {
+			await this.sfApi.updateLinkedSetting(key as SfLinkedFormattingKey, value);
+			this.mirrorHostOwnedValues({ [key]: value });
+			await this.saveSettings();
+			return;
+		}
+		await this.updateSetting(key, value);
+	}
+
+	/**
+	 * Copies host-owned values into `ffSettings` without saving (callers batch the save).
+	 * `undefined` entries are skipped, and anything failing formatForge's own value
+	 * contract is ignored rather than persisted.
+	 */
+	private mirrorHostOwnedValues(values: Record<string, unknown>): void {
+		const target = this.ffSettings as unknown as Record<string, unknown>;
+		for (const [key, value] of Object.entries(values)) {
+			if (value === undefined) continue;
+			if (!Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key)) continue;
+			if (!isValidSettingValue(key, value)) continue;
+			target[key] = key === "customPaletteColors" && Array.isArray(value)
+				? (value as SfPaletteColor[]).map((color) => ({ ...color }))
+				: value;
+		}
 	}
 
 	/** Palette from storyForge when available, otherwise formatForge's own settings. */
@@ -86,7 +162,11 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		};
 	}
 
-	/** Persist palette via storyForge when linked, otherwise to formatForge data.json. */
+	/**
+	 * Persist palette via storyForge when linked, otherwise to formatForge data.json.
+	 * The local copy is kept in step either way so unlinking storyForge later does not
+	 * revert to whatever palette data.json last held.
+	 */
 	async updatePalette(partial: {
 		name?: SfPaletteName;
 		variant?: string;
@@ -94,6 +174,12 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	}): Promise<void> {
 		if (this.sfApi) {
 			await this.sfApi.updatePalette(partial);
+			this.mirrorHostOwnedValues({
+				colorPaletteName: partial.name,
+				colorPaletteVariant: partial.variant,
+				customPaletteColors: partial.customColors,
+			});
+			await this.saveSettings();
 			return;
 		}
 		if (partial.name !== undefined) {
@@ -229,6 +315,11 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			if (partial.thickness !== undefined) {
 				await this.sfApi.updateLinkedSetting("editorScrollbarThickness", partial.thickness);
 			}
+			this.mirrorHostOwnedValues({
+				editorScrollbarThumbColor: partial.thumbColor,
+				editorScrollbarThickness: partial.thickness,
+			});
+			await this.saveSettings();
 			this.applyEditorScrollbarStyles();
 			return;
 		}
@@ -296,8 +387,9 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		body.classList.add(`sf-sb-${thickness}`);
 	}
 
-	private clearEditorScrollbarStyles(): void {
-		const docs = this.getLocalStyleDocuments();
+	private clearEditorScrollbarStyles(extraDocs: Document[] = []): void {
+		const docs = [...this.getLocalStyleDocuments(), ...extraDocs];
+		const seen = new Set<Document>();
 		const keys = [
 			"--sf-editor-scrollbar-width",
 			"--sf-editor-scrollbar-thumb",
@@ -306,6 +398,8 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			"--scrollbar-bg",
 		];
 		for (const doc of docs) {
+			if (seen.has(doc)) continue;
+			seen.add(doc);
 			const { style } = doc.body;
 			for (const key of keys) style.removeProperty(key);
 			doc.body.classList.remove("sf-editor-scrollbar", "sf-sb-thin", "sf-sb-medium", "sf-sb-thick");
@@ -400,14 +494,62 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 	// ── storyForge connection (optional) ───────────────────────────────────
 
+	/**
+	 * storyForge is gone (unloaded, downgraded, or its API briefly unavailable). Invoke the
+	 * disposers we still hold rather than abandoning them — a host that is still alive would
+	 * otherwise keep believing a companion is registered — then snapshot the values storyForge
+	 * owned and repaint. storyForge's `clearAll()` has just stripped every `--sf-*` variable,
+	 * so without the repaint the editor loses all formatForge typography until a restart.
+	 */
+	private handleStoryForgeDisconnect(): void {
+		const wasConnected = this.sfApi !== null || this.unregisterCompanion !== null;
+		if (!wasConnected) {
+			this.storyForgeApiRef = null;
+			return;
+		}
+		this.snapshotHostOwnedSettings();
+		let hostDocs: Document[] = [];
+		try {
+			hostDocs = this.sfApi?.getStyleDocuments() ?? [];
+		} catch {
+			hostDocs = [];
+		}
+		try {
+			this.unregisterCompanion?.();
+		} catch {
+			/* host may already be dead */
+		}
+		this.unregisterCompanion = null;
+		this.sfApi = null;
+		this.storyForgeApiRef = null;
+		// storyForge's clearAll only strips body --sf-* vars; our thumb/width rules also
+		// land as inline styles on the manuscript scrollers and must be removed explicitly.
+		this.clearEditorScrollbarStyles(hostDocs);
+		this.applyEditorStyles();
+	}
+
+	/**
+	 * Best-effort copy of the host-owned values into local settings before we let go of the
+	 * API. This also catches edits the author made in storyForge's own UI, which never passed
+	 * through `updateHostOwnedSetting`. A dead host may throw here; that is not fatal.
+	 */
+	private snapshotHostOwnedSettings(): void {
+		const api = this.sfApi;
+		if (!api) return;
+		try {
+			const linked = api.getLinkedSettings() as Record<string, unknown>;
+			this.mirrorHostOwnedValues(linked);
+			void this.saveSettings();
+		} catch {
+			/* host already torn down — keep the last known local values */
+		}
+	}
+
 	private connectToStoryForge(): void {
 		const tryConnect = (): boolean => {
 			const sfApi = getSfFormattingApi(this.app);
 			if (!sfApi) {
-				this.unregisterCompanion = null;
-				this.unregisterViewContribution = null;
-				this.sfApi = null;
-				this.storyForgeApiRef = null;
+				this.handleStoryForgeDisconnect();
 				return false;
 			}
 
@@ -416,14 +558,9 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 				return true;
 			}
 
-			// Host hot-reloaded (or first connect): drop stale disposers and rebind.
+			// Host hot-reloaded (or first connect): drop the stale disposer and rebind.
 			try {
 				this.unregisterCompanion?.();
-			} catch {
-				/* old host may already be dead */
-			}
-			try {
-				this.unregisterViewContribution?.();
 			} catch {
 				/* old host may already be dead */
 			}
@@ -456,14 +593,6 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 			// Re-apply after host clearAll()+reload wiped --sf-* editor vars.
 			this.applyEditorStyles();
-
-			this.unregisterViewContribution = sfApi.registerViewContribution({
-				slot: "storyforge-panel",
-				orderHint: 50,
-				render: (_containerEl) => {
-					return () => { /* no-op disposer */ };
-				},
-			});
 			return true;
 		};
 
@@ -570,13 +699,18 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 	private async loadSettings(): Promise<void> {
 		const data = (await this.loadData()) as Partial<FormatForgeSettings> | null;
-		const customColors =
-			data?.customPaletteColors ?? DEFAULT_SETTINGS.customPaletteColors;
-		this.ffSettings = {
-			...DEFAULT_SETTINGS,
-			...(data ?? {}),
-			customPaletteColors: customColors.map((c) => ({ ...c })),
-		};
+		// A hand-edited or downgraded data.json must not be able to feed a bad enum into
+		// the CSS variable maps; rejected values fall back to the defaults.
+		const { settings, rejected } = coerceSettings(
+			{ ...DEFAULT_SETTINGS, customPaletteColors: DEFAULT_SETTINGS.customPaletteColors.map((c) => ({ ...c })) },
+			(data ?? {}) as Record<string, unknown>,
+		);
+		this.ffSettings = settings;
+		if (rejected.length > 0) {
+			console.warn(
+				`formatForge: ignored ${rejected.length} invalid saved setting(s): ${rejected.join(", ")}`,
+			);
+		}
 	}
 
 	private async saveSettings(): Promise<void> {

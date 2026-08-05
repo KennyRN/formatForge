@@ -52,12 +52,10 @@ export class UiFormattingModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass("sf-ui-formatting-modal");
 
-		// Re-read in case the host connected after the settings row was built.
-		const liveApi = this.plugin.getStoryForgeApi() ?? this.sfApi;
-		if (liveApi && liveApi !== this.sfApi) {
-			this.sfApi = liveApi;
-			this.sfHost = new SfLinkedSettingsAdapter(liveApi);
-		}
+		// Re-read every render: storyForge can connect or disconnect while this modal is open.
+		const liveApi = this.plugin.getStoryForgeApi();
+		this.sfApi = liveApi;
+		this.sfHost = liveApi ? new SfLinkedSettingsAdapter(liveApi) : null;
 
 		if (!this.sfApi || !this.sfHost) {
 			contentEl.createEl("p", {
@@ -151,7 +149,7 @@ export class UiFormattingModal extends Modal {
 		];
 
 		// Story Context colour swatches live across the three context sub-tabs, but the
-		// "use header colour for everything" toggle that hides them sits in Panel chrome.
+		// "use header colour for everything" toggle that hides them sits in Navigation.
 		const contextColourSettings: Setting[] = [];
 		const applyUseHeaderColorVisibility = (hidden: boolean) => {
 			for (const setting of contextColourSettings) {
@@ -181,7 +179,7 @@ export class UiFormattingModal extends Modal {
 		const rightTabs: StyleModalTab[] = [
 			{
 				id: "chrome",
-				label: "Panel chrome",
+				label: "Navigation",
 				render: (body) =>
 					this.renderPanelChromeContent(body, s, sfApi, sfHost, contextColourSettings, applyUseHeaderColorVisibility),
 			},
@@ -795,10 +793,9 @@ export class UiFormattingModal extends Modal {
 		applyUseHeaderColorVisibility: (hidden: boolean) => void,
 	): void {
 		const forgeGroup = new SettingGroup(body);
-		forgeGroup.setHeading("Forge");
 		forgeGroup.addSetting((setting) => {
 			setting
-				.setName("Companion icon colour")
+				.setName("Forge family icon colour")
 				.setDesc("Colour of companion icons in the Forge sidebar tab.")
 				.addButton((button) =>
 					bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.forgeCompanionIconColor as string, (hex) => {
@@ -820,7 +817,6 @@ export class UiFormattingModal extends Modal {
 
 		// Novel | Chapter | Dossier tabs
 		const tabsGroup = new SettingGroup(body);
-		tabsGroup.setHeading("Story Context tabs");
 		tabsGroup.addSetting((setting) => {
 			setting
 				.setName("Tab size")

@@ -288,6 +288,16 @@ describe("formatForge storyForge bridge stress", () => {
 		const formatting = {
 			version: 2,
 			isCompanionActive: () => true,
+			registerCompanion: () => () => undefined,
+			getLinkedSettings: () => ({}) as never,
+			getLinkedSetting: () => undefined,
+			updateLinkedSetting: async () => undefined,
+			applyLinkedStyles: () => undefined,
+			setStyleVars: () => undefined,
+			getStyleDocuments: () => [],
+			getPalette: () => ({ name: "Custom", variant: "", customColors: [] }),
+			updatePalette: async () => undefined,
+			registerViewContribution: () => () => undefined,
 		} as unknown as SfFormattingApi;
 		const app = {
 			plugins: {
@@ -297,6 +307,23 @@ describe("formatForge storyForge bridge stress", () => {
 		for (let i = 0; i < 1000; i++) {
 			expect(getSfFormattingApi(app as never)).toBe(formatting);
 		}
+	});
+
+	it("rejects a host reporting a high version but missing baseline members", () => {
+		// A high `version` alone must not be trusted: if the reported surface is
+		// incomplete, formatForge should fall back to standalone rather than crash
+		// on the first missing method.
+		const formatting = {
+			version: 8,
+			isCompanionActive: () => true,
+			// registerCompanion, getLinkedSettings, etc. intentionally omitted.
+		} as unknown as SfFormattingApi;
+		const app = {
+			plugins: {
+				getPlugin: () => ({ api: { version: 8, formatting } satisfies Partial<StoryForgeHostApi> }),
+			},
+		};
+		expect(getSfFormattingApi(app as never)).toBeNull();
 	});
 
 	it("linked key union in bridge covers size + chrome families", async () => {

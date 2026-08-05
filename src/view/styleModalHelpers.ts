@@ -380,8 +380,13 @@ export function renderTabbedBody(
 			}
 		});
 		// Nested tab bars must not scroll away: when the visible body carries its own
-		// tab bar, it takes over the height and the deeper wrapper does the scrolling.
+		// tab bar, this wrapper hands height down to the deeper wrapper (which scrolls);
+		// otherwise this wrapper is the leaf scroller. Overflow is set inline rather than
+		// via the stylesheet because the cascade for these deeply-nested wrappers proved
+		// unreliable at runtime (the leaf resolved to overflow-y:visible), and inline wins.
 		tabBodyWrapper.toggleClass("is-tab-host", activeHostsTabs);
+		tabBodyWrapper.style.overflowX = "hidden";
+		tabBodyWrapper.style.overflowY = activeHostsTabs ? "hidden" : "auto";
 		options?.onActivate?.(id);
 	};
 

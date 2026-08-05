@@ -62,7 +62,8 @@ export class TextStyleModal extends Modal {
 
 		const settings = this.plugin.getTypedSettings();
 		const restyle = () => this.plugin.applyEditorStyles();
-		const sfApi = this.plugin.getStoryForgeApi() ?? this.sfApi;
+		// Always prefer the live API so a disconnect mid-session switches size writes to local.
+		const sfApi = this.plugin.getStoryForgeApi();
 		this.sfApi = sfApi;
 
 		const layout = contentEl.createDiv({ cls: "ff-text-style-layout" });
@@ -450,11 +451,9 @@ export class TextStyleModal extends Modal {
 		);
 	}
 
+	/** Sizes live on both sides, so route through the host-owned writer to keep the local mirror current. */
 	private writeSizeSetting(key: EditorSizeOverrideKey | EditorSizeKey, value: boolean | number): Promise<void> {
-		if (this.sfApi) {
-			return this.sfApi.updateLinkedSetting(key, value);
-		}
-		return this.plugin.updateSetting(key, value);
+		return this.plugin.updateHostOwnedSetting(key, value);
 	}
 
 	private renderColorOverrideCard(

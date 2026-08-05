@@ -6,6 +6,7 @@ import {
 	PALETTE_NAMES,
 	type PresetPaletteName,
 } from "../colorPalettes";
+import { FormattingExportModal } from "./FormattingExportModal";
 import { TextStyleModal } from "./TextStyleModal";
 import { UiFormattingModal } from "./UiFormattingModal";
 
@@ -107,6 +108,13 @@ export class FormatForgeSettingsTab extends PluginSettingTab {
 						visible: () => !!this.plugin.getStoryForgeApi(),
 						action: () => {
 							new UiFormattingModal(this.app, this.plugin, this.plugin.getStoryForgeApi()).open();
+						},
+					},
+					{
+						name: "Formatting themes",
+						desc: "Save, preview, and apply named themes, or share formatting as JSON.",
+						action: () => {
+							new FormattingExportModal(this.app, this.plugin).open();
 						},
 					},
 				],
