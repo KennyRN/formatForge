@@ -2,7 +2,11 @@ import { App, Modal, Setting, SettingGroup, ToggleComponent } from "obsidian";
 import type FormatForgePlugin from "../main";
 import type { SfFormattingApi, SfLinkedFormattingKey } from "../storyforgeBridge";
 import { bindColorSwatchButton, bindExclusivePair, renderCustomFontCard, renderTabbedBody, type FontCardHost, type StyleModalTab } from "./styleModalHelpers";
-import { mountRightSidebarPreviewSample, mountUiStylePreviewSample } from "./uiStylePreviewSample";
+import {
+	mountRightSidebarPreviewSample,
+	mountUiStylePreviewSample,
+	type RightSidebarPreviewMode,
+} from "./uiStylePreviewSample";
 
 /**
  * Wraps the SF formatting API so `renderCustomFontCard` can write linked settings
@@ -75,7 +79,14 @@ export class UiFormattingModal extends Modal {
 		const leftPreview = preview.createDiv();
 		const rightPreview = preview.createDiv({ cls: "sf-settings-hidden" });
 		mountUiStylePreviewSample(leftPreview);
-		mountRightSidebarPreviewSample(rightPreview);
+		let rightPreviewMode: RightSidebarPreviewMode = "chrome";
+		mountRightSidebarPreviewSample(rightPreview, rightPreviewMode);
+		const setRightPreviewMode = (mode: RightSidebarPreviewMode) => {
+			rightPreviewMode = mode;
+			if (!rightPreview.hasClass("sf-settings-hidden")) {
+				mountRightSidebarPreviewSample(rightPreview, rightPreviewMode);
+			}
+		};
 
 		const panelTabs: StyleModalTab[] = [
 			{
@@ -139,21 +150,56 @@ export class UiFormattingModal extends Modal {
 			},
 		];
 
+		// Story Context colour swatches live across the three context sub-tabs, but the
+		// "use header colour for everything" toggle that hides them sits in Panel chrome.
+		const contextColourSettings: Setting[] = [];
+		const applyUseHeaderColorVisibility = (hidden: boolean) => {
+			for (const setting of contextColourSettings) {
+				setting.settingEl.toggleClass("sf-settings-hidden", hidden);
+			}
+		};
+
+		const contextTabs: StyleModalTab[] = [
+			{
+				id: "novel",
+				label: "Novel",
+				render: (body) => this.renderContextNovelContent(body, s, sfApi, sfHost, contextColourSettings),
+			},
+			{
+				id: "chapter",
+				label: "Chapter",
+				render: (body) => this.renderContextChapterContent(body, s, sfApi, sfHost, contextColourSettings),
+			},
+			{
+				id: "dossier",
+				label: "Dossier",
+				render: (body) => this.renderContextDossierContent(body, s, sfApi, sfHost, contextColourSettings),
+			},
+		];
+
+		let contextTabId = "novel";
 		const rightTabs: StyleModalTab[] = [
 			{
-				id: "forge",
-				label: "Forge",
-				render: (body) => this.renderForgePanelContent(body, s, sfApi),
+				id: "chrome",
+				label: "Panel chrome",
+				render: (body) =>
+					this.renderPanelChromeContent(body, s, sfApi, sfHost, contextColourSettings, applyUseHeaderColorVisibility),
 			},
 			{
 				id: "story-context",
 				label: "Story Context",
-				render: (body) => this.renderRightRailPanelContent(body, s, sfApi, "recommend"),
+				render: (body) =>
+					renderTabbedBody(body, contextTabs, {
+						onActivate: (id) => {
+							contextTabId = id;
+							setRightPreviewMode(id as RightSidebarPreviewMode);
+						},
+					}),
 			},
 			{
 				id: "archive",
 				label: "Archive",
-				render: (body) => this.renderRightRailPanelContent(body, s, sfApi, "archive"),
+				render: (body) => this.renderRightRailPanelContent(body, s, sfApi, sfHost, "archive"),
 			},
 		];
 
@@ -166,7 +212,14 @@ export class UiFormattingModal extends Modal {
 			{
 				id: "right-sidebar",
 				label: "Right sidebar",
-				render: (body) => renderTabbedBody(body, rightTabs),
+				render: (body) =>
+					renderTabbedBody(body, rightTabs, {
+						onActivate: (id) => {
+							setRightPreviewMode(
+								(id === "story-context" ? contextTabId : id) as RightSidebarPreviewMode,
+							);
+						},
+					}),
 			},
 		];
 
@@ -174,8 +227,14 @@ export class UiFormattingModal extends Modal {
 			onActivate: (id) => {
 				leftPreview.toggleClass("sf-settings-hidden", id !== "storyforge-panel");
 				rightPreview.toggleClass("sf-settings-hidden", id !== "right-sidebar");
+				if (id === "right-sidebar") {
+					mountRightSidebarPreviewSample(rightPreview, rightPreviewMode);
+				}
 			},
 		});
+
+		// Runs once every context sub-tab has contributed its colour swatches.
+		applyUseHeaderColorVisibility(s.recommendUseHeaderColorForAll as boolean);
 	}
 
 	private renderHighlightGroup(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi): void {
@@ -205,8 +264,9 @@ export class UiFormattingModal extends Modal {
 			fontWeightKey: SfLinkedFormattingKey;
 			colorKey: SfLinkedFormattingKey;
 			smallCapsKey: SfLinkedFormattingKey;
+			mutedKey?: SfLinkedFormattingKey;
 		},
-	): void {
+	): { colorSetting: Setting } {
 		const group = new SettingGroup(body);
 		group.addSetting((setting) => {
 			setting
@@ -230,8 +290,10 @@ export class UiFormattingModal extends Modal {
 			fontWeightKey: config.fontWeightKey,
 			restyle: () => sfApi.applyLinkedStyles(),
 		});
+		let colorSetting!: Setting;
 		group
 			.addSetting((setting) => {
+				colorSetting = setting;
 				setting
 					.setName(`${config.labelPrefix} colour`)
 					.addButton((button) =>
@@ -250,6 +312,20 @@ export class UiFormattingModal extends Modal {
 					);
 				setting.nameEl.addClass("sf-small-caps-label");
 			});
+		if (config.mutedKey) {
+			const mutedKey = config.mutedKey;
+			group.addSetting((setting) => {
+				setting
+					.setName("Muted")
+					.setDesc(`Override ${config.labelPrefix.toLowerCase()} colour with muted colour.`)
+					.addToggle((toggle) =>
+						toggle
+							.setValue(s[mutedKey] as boolean)
+							.onChange((value) => void sfApi.updateLinkedSetting(mutedKey, value)),
+					);
+			});
+		}
+		return { colorSetting };
 	}
 
 	private renderSubtitleStyleGroup(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi, sfHost: FontCardHost): void {
@@ -706,9 +782,21 @@ export class UiFormattingModal extends Modal {
 		applyUseHeaderColorVisibility(s.codexUseHeaderColorForAll as boolean);
 	}
 
-	private renderForgePanelContent(body: HTMLElement, s: Record<string, unknown>, sfApi: SfFormattingApi): void {
-		const group = new SettingGroup(body);
-		group.addSetting((setting) => {
+	/**
+	 * Chrome shared by the right sidebar: Forge companion icons plus the Story Context
+	 * header and its Novel / Chapter / Dossier tab strip.
+	 */
+	private renderPanelChromeContent(
+		body: HTMLElement,
+		s: Record<string, unknown>,
+		sfApi: SfFormattingApi,
+		sfHost: FontCardHost,
+		colourSettings: Setting[],
+		applyUseHeaderColorVisibility: (hidden: boolean) => void,
+	): void {
+		const forgeGroup = new SettingGroup(body);
+		forgeGroup.setHeading("Forge");
+		forgeGroup.addSetting((setting) => {
 			setting
 				.setName("Companion icon colour")
 				.setDesc("Colour of companion icons in the Forge sidebar tab.")
@@ -718,112 +806,423 @@ export class UiFormattingModal extends Modal {
 					}),
 				);
 		});
-	}
 
-	private renderRightRailHeaderStyleGroup(
-		body: HTMLElement,
-		s: Record<string, unknown>,
-		sfApi: SfFormattingApi,
-		config: {
-			sizeKey: SfLinkedFormattingKey;
-			colorKey: SfLinkedFormattingKey;
-			mutedKey: SfLinkedFormattingKey;
-			smallCapsKey: SfLinkedFormattingKey;
-			useHeaderColorForAllKey: SfLinkedFormattingKey;
-		},
-	): ToggleComponent {
-		const group = new SettingGroup(body);
-		let useHeaderColorForAllToggle!: ToggleComponent;
-		group
+		const useHeaderColorToggle = this.renderHeaderStyleGroup(body, s, sfApi, sfHost, {
+			sizeKey: "recommendHeaderFontSize",
+			overrideFontKey: "recommendHeaderOverrideFont",
+			fontFamilyKey: "recommendHeaderFontFamily",
+			fontWeightKey: "recommendHeaderFontWeight",
+			colorKey: "recommendHeaderColor",
+			mutedKey: "recommendHeaderMuted",
+			smallCapsKey: "recommendHeaderSmallCaps",
+			useHeaderColorForAllKey: "recommendUseHeaderColorForAll",
+		});
+
+		// Novel | Chapter | Dossier tabs
+		const tabsGroup = new SettingGroup(body);
+		tabsGroup.setHeading("Story Context tabs");
+		tabsGroup.addSetting((setting) => {
+			setting
+				.setName("Tab size")
+				.setDesc("Text size of the Novel, Chapter and Dossier tabs.")
+				.addSlider((slider) =>
+					slider
+						.setLimits(0.5, 1.5, 0.1)
+						.setValue(s.recommendTabsFontSize as number)
+						.onChange((value) => void sfApi.updateLinkedSetting("recommendTabsFontSize", value)),
+				);
+		});
+		renderCustomFontCard({
+			host: sfHost,
+			app: this.app,
+			previewFontSizeEm: () => Number(sfHost.getSettings()["recommendTabsFontSize"]) || 0.85,
+			settings: s,
+			group: tabsGroup,
+			overrideFontKey: "recommendTabsOverrideFont",
+			fontFamilyKey: "recommendTabsFontFamily",
+			fontWeightKey: "recommendTabsFontWeight",
+			restyle: () => sfApi.applyLinkedStyles(),
+		});
+		let tabsColourSetting!: Setting;
+		let tabsActiveColourSetting!: Setting;
+		tabsGroup
 			.addSetting((setting) => {
+				tabsColourSetting = setting;
 				setting
-					.setName("Header size")
-					.setDesc("Size of header label and icon.")
-					.addSlider((slider) =>
-						slider
-							.setLimits(0.5, 1.5, 0.1)
-							.setValue(s[config.sizeKey] as number)
-							.onChange((value) => void sfApi.updateLinkedSetting(config.sizeKey, value)),
+					.setName("Tab colour")
+					.setDesc("Colour of inactive tabs.")
+					.addButton((button) =>
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.recommendTabsColor as string, (hex) => {
+							void sfApi.updateLinkedSetting("recommendTabsColor", hex);
+						}),
 					);
 			})
 			.addSetting((setting) => {
+				tabsActiveColourSetting = setting;
 				setting
-					.setName("Header colour")
+					.setName("Active tab colour")
 					.addButton((button) =>
-						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s[config.colorKey] as string, (hex) => {
-							void sfApi.updateLinkedSetting(config.colorKey, hex);
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.recommendTabsActiveColor as string, (hex) => {
+							void sfApi.updateLinkedSetting("recommendTabsActiveColor", hex);
+						}),
+					);
+			});
+		colourSettings.push(tabsColourSetting, tabsActiveColourSetting);
+
+		useHeaderColorToggle.onChange((value) => {
+			void sfApi.updateLinkedSetting("recommendUseHeaderColorForAll", value).then(() => {
+				applyUseHeaderColorVisibility(value);
+			});
+		});
+	}
+
+	/** Novel tab — cover title, subtitle, and the plot list's chapter names. */
+	private renderContextNovelContent(
+		body: HTMLElement,
+		s: Record<string, unknown>,
+		sfApi: SfFormattingApi,
+		sfHost: FontCardHost,
+		colourSettings: Setting[],
+	): void {
+		const novelTitle = this.renderTitleStyleGroup(body, s, sfApi, sfHost, {
+			labelPrefix: "Novel title",
+			sizeKey: "recommendNovelTitleFontSize",
+			overrideFontKey: "recommendNovelTitleOverrideFont",
+			fontFamilyKey: "recommendNovelTitleFontFamily",
+			fontWeightKey: "recommendNovelTitleFontWeight",
+			colorKey: "recommendNovelTitleColor",
+			smallCapsKey: "recommendNovelTitleSmallCaps",
+			mutedKey: "recommendNovelTitleMuted",
+		});
+		colourSettings.push(novelTitle.colorSetting);
+
+		const novelSubtitle = this.renderTitleStyleGroup(body, s, sfApi, sfHost, {
+			labelPrefix: "Novel subtitle",
+			sizeKey: "recommendNovelSubtitleFontSize",
+			overrideFontKey: "recommendNovelSubtitleOverrideFont",
+			fontFamilyKey: "recommendNovelSubtitleFontFamily",
+			fontWeightKey: "recommendNovelSubtitleFontWeight",
+			colorKey: "recommendNovelSubtitleColor",
+			smallCapsKey: "recommendNovelSubtitleSmallCaps",
+			mutedKey: "recommendNovelSubtitleMuted",
+		});
+		colourSettings.push(novelSubtitle.colorSetting);
+
+		const plotChapter = this.renderTitleStyleGroup(body, s, sfApi, sfHost, {
+			labelPrefix: "Plot chapter name",
+			sizeKey: "recommendPlotChapterFontSize",
+			overrideFontKey: "recommendPlotChapterOverrideFont",
+			fontFamilyKey: "recommendPlotChapterFontFamily",
+			fontWeightKey: "recommendPlotChapterFontWeight",
+			colorKey: "recommendPlotChapterColor",
+			smallCapsKey: "recommendPlotChapterSmallCaps",
+			mutedKey: "recommendPlotChapterMuted",
+		});
+		colourSettings.push(plotChapter.colorSetting);
+
+		const sharedGroup = new SettingGroup(body);
+		sharedGroup.setHeading("Shared styles");
+		sharedGroup.addSetting((setting) => {
+			setting
+				.setName("Synopsis, plot notes and PoV / Location rows")
+				.setDesc("Styled on the Chapter tab — the Novel pane reuses those styles.");
+		});
+	}
+
+	/** Dossier tab — the search field, styled as the pane's header. */
+	private renderContextDossierContent(
+		body: HTMLElement,
+		s: Record<string, unknown>,
+		sfApi: SfFormattingApi,
+		sfHost: FontCardHost,
+		colourSettings: Setting[],
+	): void {
+		const dossierHeader = this.renderTitleStyleGroup(body, s, sfApi, sfHost, {
+			labelPrefix: "Dossier search",
+			sizeKey: "recommendDossierHeaderFontSize",
+			overrideFontKey: "recommendDossierHeaderOverrideFont",
+			fontFamilyKey: "recommendDossierHeaderFontFamily",
+			fontWeightKey: "recommendDossierHeaderFontWeight",
+			colorKey: "recommendDossierHeaderColor",
+			smallCapsKey: "recommendDossierHeaderSmallCaps",
+			mutedKey: "recommendDossierHeaderMuted",
+		});
+		colourSettings.push(dossierHeader.colorSetting);
+
+		const sharedGroup = new SettingGroup(body);
+		sharedGroup.setHeading("Shared styles");
+		sharedGroup.addSetting((setting) => {
+			setting
+				.setName("Chapter headings and detail cards")
+				.setDesc("Styled on the Chapter tab as section titles and details.");
+		});
+	}
+
+	/** Chapter tab — chapter chrome plus the section, reference and detail styles shared with the other context panes. */
+	private renderContextChapterContent(
+		body: HTMLElement,
+		s: Record<string, unknown>,
+		sfApi: SfFormattingApi,
+		sfHost: FontCardHost,
+		colourSettings: Setting[],
+	): void {
+		// Chapter title
+		const chapterTitle = this.renderTitleStyleGroup(body, s, sfApi, sfHost, {
+			labelPrefix: "Chapter title",
+			sizeKey: "recommendChapterTitleFontSize",
+			overrideFontKey: "recommendChapterTitleOverrideFont",
+			fontFamilyKey: "recommendChapterTitleFontFamily",
+			fontWeightKey: "recommendChapterTitleFontWeight",
+			colorKey: "recommendChapterTitleColor",
+			smallCapsKey: "recommendChapterTitleSmallCaps",
+			mutedKey: "recommendChapterTitleMuted",
+		});
+		colourSettings.push(chapterTitle.colorSetting);
+
+		// Section titles (Characters in chapter, Details to capture, …)
+		const sectionTitle = this.renderTitleStyleGroup(body, s, sfApi, sfHost, {
+			labelPrefix: "Section title",
+			sizeKey: "recommendSectionTitleFontSize",
+			overrideFontKey: "recommendSectionTitleOverrideFont",
+			fontFamilyKey: "recommendSectionTitleFontFamily",
+			fontWeightKey: "recommendSectionTitleFontWeight",
+			colorKey: "recommendSectionTitleColor",
+			smallCapsKey: "recommendSectionTitleSmallCaps",
+			mutedKey: "recommendSectionTitleMuted",
+		});
+		colourSettings.push(sectionTitle.colorSetting);
+
+		// PoV / Location labels ("PoV:", "Location:", "Default PoV:")
+		const metaLabel = this.renderTitleStyleGroup(body, s, sfApi, sfHost, {
+			labelPrefix: "PoV / Location label",
+			sizeKey: "recommendMetaLabelFontSize",
+			overrideFontKey: "recommendMetaLabelOverrideFont",
+			fontFamilyKey: "recommendMetaLabelFontFamily",
+			fontWeightKey: "recommendMetaLabelFontWeight",
+			colorKey: "recommendMetaLabelColor",
+			smallCapsKey: "recommendMetaLabelSmallCaps",
+			mutedKey: "recommendMetaLabelMuted",
+		});
+		colourSettings.push(metaLabel.colorSetting);
+
+		// PoV / Location selector (icon + character / place name)
+		const metaControlGroup = new SettingGroup(body);
+		metaControlGroup.setHeading("PoV / Location selector");
+		metaControlGroup.addSetting((setting) => {
+			setting
+				.setName("Selector size")
+				.setDesc("Text size of the icon and selected character / location name.")
+				.addSlider((slider) =>
+					slider
+						.setLimits(0.5, 1.5, 0.1)
+						.setValue(s.recommendMetaControlFontSize as number)
+						.onChange((value) => void sfApi.updateLinkedSetting("recommendMetaControlFontSize", value)),
+				);
+		});
+		renderCustomFontCard({
+			host: sfHost,
+			app: this.app,
+			previewFontSizeEm: () => Number(sfHost.getSettings()["recommendMetaControlFontSize"]) || 1,
+			settings: s,
+			group: metaControlGroup,
+			overrideFontKey: "recommendMetaControlOverrideFont",
+			fontFamilyKey: "recommendMetaControlFontFamily",
+			fontWeightKey: "recommendMetaControlFontWeight",
+			restyle: () => sfApi.applyLinkedStyles(),
+		});
+		let metaControlColourSetting!: Setting;
+		metaControlGroup
+			.addSetting((setting) => {
+				metaControlColourSetting = setting;
+				setting
+					.setName("Selector colour")
+					.addButton((button) =>
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.recommendMetaControlColor as string, (hex) => {
+							void sfApi.updateLinkedSetting("recommendMetaControlColor", hex);
 						}),
 					);
 			})
 			.addSetting((setting) => {
 				setting
-					.setName("Use header colour for all colour options")
-					.setDesc("Use the header colour everywhere below instead of picking separate colours.")
-					.addToggle((toggle) => {
-						useHeaderColorForAllToggle = toggle;
-						toggle.setValue(s[config.useHeaderColorForAllKey] as boolean);
-					});
+					.setName("Muted")
+					.setDesc("Override selector colour with muted colour.")
+					.addToggle((toggle) =>
+						toggle
+							.setValue(s.recommendMetaControlMuted as boolean)
+							.onChange((value) => void sfApi.updateLinkedSetting("recommendMetaControlMuted", value)),
+					);
+			});
+		colourSettings.push(metaControlColourSetting);
+
+		// Codex references / list rows
+		const itemsGroup = new SettingGroup(body);
+		itemsGroup.setHeading("Codex references");
+		itemsGroup.addSetting((setting) => {
+			setting
+				.setName("Reference size")
+				.setDesc("Text size of Codex reference rows (Characters in chapter, Other Codex references, …).")
+				.addSlider((slider) =>
+					slider
+						.setLimits(0.5, 1.5, 0.1)
+						.setValue(s.recommendItemsFontSize as number)
+						.onChange((value) => void sfApi.updateLinkedSetting("recommendItemsFontSize", value)),
+				);
+		});
+		renderCustomFontCard({
+			host: sfHost,
+			app: this.app,
+			previewFontSizeEm: () => Number(sfHost.getSettings()["recommendItemsFontSize"]) || 1,
+			settings: s,
+			group: itemsGroup,
+			overrideFontKey: "recommendItemsOverrideFont",
+			fontFamilyKey: "recommendItemsFontFamily",
+			fontWeightKey: "recommendItemsFontWeight",
+			restyle: () => sfApi.applyLinkedStyles(),
+		});
+		let itemsColourSetting!: Setting;
+		itemsGroup
+			.addSetting((setting) => {
+				itemsColourSetting = setting;
+				setting
+					.setName("Reference colour")
+					.addButton((button) =>
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.recommendItemsColor as string, (hex) => {
+							void sfApi.updateLinkedSetting("recommendItemsColor", hex);
+						}),
+					);
 			})
 			.addSetting((setting) => {
 				setting
 					.setName("Muted")
-					.setDesc("Override header colour with muted colour.")
+					.setDesc("Override reference colour with muted colour.")
 					.addToggle((toggle) =>
 						toggle
-							.setValue(s[config.mutedKey] as boolean)
-							.onChange((value) => void sfApi.updateLinkedSetting(config.mutedKey, value)),
+							.setValue(s.recommendItemsMuted as boolean)
+							.onChange((value) => void sfApi.updateLinkedSetting("recommendItemsMuted", value)),
+					);
+			});
+		colourSettings.push(itemsColourSetting);
+
+		// Details to capture / hit cards
+		const detailsGroup = new SettingGroup(body);
+		detailsGroup.setHeading("Details to capture");
+		detailsGroup.addSetting((setting) => {
+			setting
+				.setName("Details size")
+				.setDesc("Text size of detail hits, facts, and related meta text, in both the Chapter and Dossier panes.")
+				.addSlider((slider) =>
+					slider
+						.setLimits(0.5, 1.5, 0.1)
+						.setValue(s.recommendDetailsFontSize as number)
+						.onChange((value) => void sfApi.updateLinkedSetting("recommendDetailsFontSize", value)),
+				);
+		});
+		renderCustomFontCard({
+			host: sfHost,
+			app: this.app,
+			previewFontSizeEm: () => Number(sfHost.getSettings()["recommendDetailsFontSize"]) || 0.9,
+			settings: s,
+			group: detailsGroup,
+			overrideFontKey: "recommendDetailsOverrideFont",
+			fontFamilyKey: "recommendDetailsFontFamily",
+			fontWeightKey: "recommendDetailsFontWeight",
+			restyle: () => sfApi.applyLinkedStyles(),
+		});
+		let detailsColourSetting!: Setting;
+		detailsGroup
+			.addSetting((setting) => {
+				detailsColourSetting = setting;
+				setting
+					.setName("Details colour")
+					.addButton((button) =>
+						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.recommendDetailsColor as string, (hex) => {
+							void sfApi.updateLinkedSetting("recommendDetailsColor", hex);
+						}),
 					);
 			})
 			.addSetting((setting) => {
 				setting
-					.setName("Small caps")
+					.setName("Muted")
+					.setDesc("Override details colour with muted colour.")
 					.addToggle((toggle) =>
 						toggle
-							.setValue(s[config.smallCapsKey] as boolean)
-							.onChange((value) => void sfApi.updateLinkedSetting(config.smallCapsKey, value)),
+							.setValue(s.recommendDetailsMuted as boolean)
+							.onChange((value) => void sfApi.updateLinkedSetting("recommendDetailsMuted", value)),
 					);
-				setting.nameEl.addClass("sf-small-caps-label");
 			});
-		return useHeaderColorForAllToggle;
+		colourSettings.push(detailsColourSetting);
+
+		// Synopsis
+		const synopsisGroup = new SettingGroup(body);
+		synopsisGroup.setHeading("Synopsis");
+		synopsisGroup.addSetting((setting) => {
+			setting
+				.setName("Synopsis size")
+				.setDesc("Text size of the chapter summary, novel synopsis, and plot notes.")
+				.addSlider((slider) =>
+					slider
+						.setLimits(0.5, 1.5, 0.1)
+						.setValue(s.recommendSynopsisFontSize as number)
+						.onChange((value) => void sfApi.updateLinkedSetting("recommendSynopsisFontSize", value)),
+				);
+		});
+		renderCustomFontCard({
+			host: sfHost,
+			app: this.app,
+			previewFontSizeEm: () => Number(sfHost.getSettings()["recommendSynopsisFontSize"]) || 1,
+			settings: s,
+			group: synopsisGroup,
+			overrideFontKey: "recommendSynopsisOverrideFont",
+			fontFamilyKey: "recommendSynopsisFontFamily",
+			fontWeightKey: "recommendSynopsisFontWeight",
+			restyle: () => sfApi.applyLinkedStyles(),
+		});
+		let synopsisColourSetting!: Setting;
+		synopsisGroup.addSetting((setting) => {
+			synopsisColourSetting = setting;
+			setting
+				.setName("Synopsis colour")
+				.addButton((button) =>
+					bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.recommendSynopsisColor as string, (hex) => {
+						void sfApi.updateLinkedSetting("recommendSynopsisColor", hex);
+					}),
+				);
+		});
+		colourSettings.push(synopsisColourSetting);
 	}
 
 	private renderRightRailPanelContent(
 		body: HTMLElement,
 		s: Record<string, unknown>,
 		sfApi: SfFormattingApi,
-		panel: "recommend" | "archive",
+		sfHost: FontCardHost,
+		panel: "archive",
 	): void {
-		const keys =
-			panel === "recommend"
-				? {
-						sizeKey: "recommendHeaderFontSize" as const,
-						colorKey: "recommendHeaderColor" as const,
-						mutedKey: "recommendHeaderMuted" as const,
-						smallCapsKey: "recommendHeaderSmallCaps" as const,
-						useHeaderColorForAllKey: "recommendUseHeaderColorForAll" as const,
-						itemsSizeKey: "recommendItemsFontSize" as const,
-						itemsColorKey: "recommendItemsColor" as const,
-						itemsMutedKey: "recommendItemsMuted" as const,
-						highlightColorKey: "recommendHighlightColor" as const,
-						highlightTextColorKey: "recommendHighlightTextColor" as const,
-						itemsLabel: "Story Context items",
-					}
-				: {
-						sizeKey: "archiveHeaderFontSize" as const,
-						colorKey: "archiveHeaderColor" as const,
-						mutedKey: "archiveHeaderMuted" as const,
-						smallCapsKey: "archiveHeaderSmallCaps" as const,
-						useHeaderColorForAllKey: "archiveUseHeaderColorForAll" as const,
-						itemsSizeKey: "archiveItemsFontSize" as const,
-						itemsColorKey: "archiveItemsColor" as const,
-						itemsMutedKey: "archiveItemsMuted" as const,
-						highlightColorKey: "archiveHighlightColor" as const,
-						highlightTextColorKey: "archiveHighlightTextColor" as const,
-						itemsLabel: "Archive items",
-					};
+		const keys = {
+			sizeKey: "archiveHeaderFontSize" as const,
+			overrideFontKey: "archiveHeaderOverrideFont" as const,
+			fontFamilyKey: "archiveHeaderFontFamily" as const,
+			fontWeightKey: "archiveHeaderFontWeight" as const,
+			colorKey: "archiveHeaderColor" as const,
+			mutedKey: "archiveHeaderMuted" as const,
+			smallCapsKey: "archiveHeaderSmallCaps" as const,
+			useHeaderColorForAllKey: "archiveUseHeaderColorForAll" as const,
+			itemsSizeKey: "archiveItemsFontSize" as const,
+			itemsOverrideFontKey: "archiveItemsOverrideFont" as const,
+			itemsFontFamilyKey: "archiveItemsFontFamily" as const,
+			itemsFontWeightKey: "archiveItemsFontWeight" as const,
+			itemsColorKey: "archiveItemsColor" as const,
+			itemsMutedKey: "archiveItemsMuted" as const,
+			highlightColorKey: "archiveHighlightColor" as const,
+			highlightTextColorKey: "archiveHighlightTextColor" as const,
+			itemsLabel: "Archive items",
+		};
 
-		const useHeaderColorToggle = this.renderRightRailHeaderStyleGroup(body, s, sfApi, {
+		const useHeaderColorToggle = this.renderHeaderStyleGroup(body, s, sfApi, sfHost, {
 			sizeKey: keys.sizeKey,
+			overrideFontKey: keys.overrideFontKey,
+			fontFamilyKey: keys.fontFamilyKey,
+			fontWeightKey: keys.fontWeightKey,
 			colorKey: keys.colorKey,
 			mutedKey: keys.mutedKey,
 			smallCapsKey: keys.smallCapsKey,
@@ -832,18 +1231,29 @@ export class UiFormattingModal extends Modal {
 
 		const itemsGroup = new SettingGroup(body);
 		let itemsColourSetting!: Setting;
+		itemsGroup.addSetting((setting) => {
+			setting
+				.setName(keys.itemsLabel)
+				.setDesc("Text size of list items, from 0.5em to 1.5em.")
+				.addSlider((slider) =>
+					slider
+						.setLimits(0.5, 1.5, 0.1)
+						.setValue(s[keys.itemsSizeKey] as number)
+						.onChange((value) => void sfApi.updateLinkedSetting(keys.itemsSizeKey, value)),
+				);
+		});
+		renderCustomFontCard({
+			host: sfHost,
+			app: this.app,
+			previewFontSizeEm: () => Number(sfHost.getSettings()[keys.itemsSizeKey]) || 1,
+			settings: s,
+			group: itemsGroup,
+			overrideFontKey: keys.itemsOverrideFontKey,
+			fontFamilyKey: keys.itemsFontFamilyKey,
+			fontWeightKey: keys.itemsFontWeightKey,
+			restyle: () => sfApi.applyLinkedStyles(),
+		});
 		itemsGroup
-			.addSetting((setting) => {
-				setting
-					.setName(keys.itemsLabel)
-					.setDesc("Text size of list items, from 0.5em to 1.5em.")
-					.addSlider((slider) =>
-						slider
-							.setLimits(0.5, 1.5, 0.1)
-							.setValue(s[keys.itemsSizeKey] as number)
-							.onChange((value) => void sfApi.updateLinkedSetting(keys.itemsSizeKey, value)),
-					);
-			})
 			.addSetting((setting) => {
 				itemsColourSetting = setting;
 				setting

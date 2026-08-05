@@ -369,14 +369,19 @@ export function renderTabbedBody(
 	const activate = (id: string) => {
 		activeTabId = id;
 		tabBar.querySelectorAll(".sf-text-style-tab-btn").forEach((btn) => btn.removeClass("is-active"));
+		let activeHostsTabs = false;
 		tabBodies.forEach((body, i) => {
 			const isActive = tabs[i].id === activeTabId;
 			body.toggleClass("sf-settings-hidden", !isActive);
 			if (isActive) {
 				const btn = tabBar.children[i] as HTMLElement | undefined;
 				btn?.addClass("is-active");
+				activeHostsTabs = body.hasClass("is-tab-host");
 			}
 		});
+		// Nested tab bars must not scroll away: when the visible body carries its own
+		// tab bar, it takes over the height and the deeper wrapper does the scrolling.
+		tabBodyWrapper.toggleClass("is-tab-host", activeHostsTabs);
 		options?.onActivate?.(id);
 	};
 
@@ -392,8 +397,11 @@ export function renderTabbedBody(
 			bodyEl.addClass("sf-settings-hidden");
 		}
 		tab.render(bodyEl);
+		if (bodyEl.firstElementChild?.hasClass("sf-text-style-tab-bar")) {
+			bodyEl.addClass("is-tab-host");
+		}
 		tabBodies.push(bodyEl);
 	});
 
-	options?.onActivate?.(activeTabId);
+	activate(activeTabId);
 }

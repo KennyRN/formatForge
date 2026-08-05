@@ -365,11 +365,26 @@
 	padding: 10px;
 }
 
-/* Nested tabs inside storyForge interface modal */
+/* Nested tabs: the wrapper holding the deepest visible tab bar owns the scrolling,
+ * so no tab strip — outer, panel, or context — scrolls out of view.
+ * `is-tab-host` is set by renderTabbedBody on the wrapper and on bodies with nested tabs. */
+.sf-text-style-tab-body-wrapper.is-tab-host {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.sf-text-style-tab-body.is-tab-host {
+	flex: 1 1 auto;
+	min-height: 0;
+	gap: 0;
+}
+
 .sf-text-style-tab-body > .sf-text-style-tab-body-wrapper {
+	flex: 1 1 auto;
+	min-height: 0;
 	height: auto;
-	overflow: visible;
-	flex: none;
+	padding-top: var(--size-4-4);
 }
 
 /* Text styling preview: cycling guide mid-manuscript (uses storyForge --sf-cg-* vars) */
