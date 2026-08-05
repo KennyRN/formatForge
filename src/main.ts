@@ -703,7 +703,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		// the CSS variable maps; rejected values fall back to the defaults.
 		const { settings, rejected } = coerceSettings(
 			{ ...DEFAULT_SETTINGS, customPaletteColors: DEFAULT_SETTINGS.customPaletteColors.map((c) => ({ ...c })) },
-			(data ?? {}) as Record<string, unknown>,
+			data ?? {},
 		);
 		this.ffSettings = settings;
 		if (rejected.length > 0) {

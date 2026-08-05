@@ -94,7 +94,7 @@ export function buildFormattingExport(
 		palette: options.included?.palette ?? true,
 	};
 	const local = textStyling as unknown as Record<string, unknown>;
-	const linked = storyForgeInterface as Record<string, unknown> | null;
+	const linked = storyForgeInterface;
 	const paletteExcluded = new Set<string>(PALETTE_KEYS);
 	const interfaceExcluded = new Set<string>([
 		...PALETTE_KEYS,
@@ -167,7 +167,7 @@ function migrateVersionOne(parsed: Record<string, unknown>): FormattingExportDoc
 		throw new Error("The storyForge interface settings are invalid");
 	}
 	const local = parsed.textStyling;
-	const linked = parsed.storyForgeInterface as Record<string, unknown> | null;
+	const linked = parsed.storyForgeInterface;
 	const textSection = withoutKeys(local, new Set<string>(PALETTE_KEYS));
 	if (linked) Object.assign(textSection, pickKeys(linked, SF_TEXT_STYLING_KEYS));
 	return {

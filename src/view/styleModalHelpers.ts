@@ -385,8 +385,10 @@ export function renderTabbedBody(
 		// via the stylesheet because the cascade for these deeply-nested wrappers proved
 		// unreliable at runtime (the leaf resolved to overflow-y:visible), and inline wins.
 		tabBodyWrapper.toggleClass("is-tab-host", activeHostsTabs);
-		tabBodyWrapper.style.overflowX = "hidden";
-		tabBodyWrapper.style.overflowY = activeHostsTabs ? "hidden" : "auto";
+		tabBodyWrapper.setCssStyles({
+			overflowX: "hidden",
+			overflowY: activeHostsTabs ? "hidden" : "auto",
+		});
 		options?.onActivate?.(id);
 	};
 
