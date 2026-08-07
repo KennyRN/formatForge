@@ -1,5 +1,159 @@
 /* ── formatForge styles ── */
 
+/* ── Embedded custom fonts ──────────────────────────────────────────────
+ * Static @font-face rules pointing straight at the real files bundled in
+ * this plugin's fonts/ folder (relative URLs resolve against the plugin's
+ * own directory, same as any other plugin asset). This is the primary,
+ * always-available desktop+mobile path: plain authored CSS, no runtime
+ * <style> injection and no JS FontFace() indirection required for these
+ * fonts to be usable in ordinary DOM layout (canvas text and
+ * document.fonts bookkeeping both already worked before this — actual
+ * heading/paragraph rendering needs a real stylesheet rule like this one).
+ * fonts.ts's base64-embedded copies + FontFace API registration still run
+ * alongside this as a belt-and-suspenders path for any runtime (e.g. a
+ * future non-file-URL sandbox) where a relative fonts/ URL doesn't resolve
+ * — harmless to keep registered twice under the same family name. */
+@font-face {
+	font-family: "storyForge Alan Sans";
+	src: url("fonts/AlanSans-VariableFont_wght.woff2") format("woff2");
+	font-weight: 300 900;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Caveat";
+	src: url("fonts/Caveat-VariableFont_wght.woff2") format("woff2");
+	font-weight: 400 700;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Courier Prime";
+	src: url("fonts/CourierPrime-Regular.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Courier Prime";
+	src: url("fonts/CourierPrime-Bold.woff2") format("woff2");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Courier Prime";
+	src: url("fonts/CourierPrime-Italic.woff2") format("woff2");
+	font-weight: 400;
+	font-style: italic;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Courier Prime";
+	src: url("fonts/CourierPrime-BoldItalic.woff2") format("woff2");
+	font-weight: 700;
+	font-style: italic;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Exo 2";
+	src: url("fonts/Exo2-VariableFont_wght.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Exo 2";
+	src: url("fonts/Exo2-Italic-VariableFont_wght.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: italic;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Fredoka";
+	src: url("fonts/Fredoka-VariableFont_wdth,wght.woff2") format("woff2");
+	font-weight: 300 700;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Grenze";
+	src: url("fonts/Grenze-VariableFont_wght.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Grenze";
+	src: url("fonts/Grenze-Italic-VariableFont_wght.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: italic;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge IBM Plex Sans Var";
+	src: url("fonts/IBM Plex Sans Var-Roman.woff2") format("woff2");
+	font-weight: 100 700;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge IBM Plex Sans Var";
+	src: url("fonts/IBM Plex Sans Var-Italic.woff2") format("woff2");
+	font-weight: 100 700;
+	font-style: italic;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Libre Baskerville";
+	src: url("fonts/LibreBaskerville-VariableFont_wght.woff2") format("woff2");
+	font-weight: 400 700;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Libre Baskerville";
+	src: url("fonts/LibreBaskerville-Italic-VariableFont_wght.woff2") format("woff2");
+	font-weight: 400 700;
+	font-style: italic;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Nunito";
+	src: url("fonts/Nunito-VariableFont_wght.woff2") format("woff2");
+	font-weight: 200 900;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Nunito";
+	src: url("fonts/Nunito-Italic-VariableFont_wght.woff2") format("woff2");
+	font-weight: 200 900;
+	font-style: italic;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge Playpen Sans";
+	src: url("fonts/PlaypenSans-VariableFont_wght.woff2") format("woff2");
+	font-weight: 100 800;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge SN Pro";
+	src: url("fonts/SNPro-VariableFont_wght.woff2") format("woff2");
+	font-weight: 200 900;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "storyForge SN Pro";
+	src: url("fonts/SNPro-Italic-VariableFont_wght.woff2") format("woff2");
+	font-weight: 200 900;
+	font-style: italic;
+	font-display: swap;
+}
+
 /* Needed for small-caps labels in font settings */
 .sf-small-caps-label {
 	font-variant: small-caps;

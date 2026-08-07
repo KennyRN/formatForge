@@ -36,6 +36,13 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 		this.addSettingTab(new FormatForgeSettingsTab(this.app, this));
 		this.addCommands();
+		// Same action as the "Open text styling" command — a one-click shortcut that skips
+		// Settings entirely.
+		this.addRibbonIcon("type", "Open text styling", () => {
+			void import("./view/TextStyleModal").then(({ TextStyleModal }) => {
+				new TextStyleModal(this.app, this, this.sfApi).open();
+			});
+		});
 
 		// Soft-connect optional Forge hosts once the workspace is ready.
 		this.app.workspace.onLayoutReady(() => {
@@ -698,7 +705,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	// ── Persistence ───────────────────────────────────────────────────────
 
 	private async loadSettings(): Promise<void> {
-		const data = (await this.loadData()) as Partial<FormatForgeSettings> | null;
+		const data: Partial<FormatForgeSettings> | null = await this.loadData();
 		// A hand-edited or downgraded data.json must not be able to feed a bad enum into
 		// the CSS variable maps; rejected values fall back to the defaults.
 		const { settings, rejected } = coerceSettings(

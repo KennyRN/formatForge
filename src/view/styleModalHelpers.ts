@@ -68,7 +68,7 @@ export function bindColorSwatchButton(
 	buttonEl.addClass("sf-color-swatch-btn");
 	buttonEl.setAttr("aria-label", "Choose colour");
 	const paint = (hex: string) => {
-		buttonEl.style.backgroundColor = hex;
+		buttonEl.setCssStyles({ backgroundColor: hex });
 	};
 	paint(initialHex);
 	buttonEl.addEventListener("click", () => openColorSwatchPicker(app, getPalette, paint, onPick));
@@ -93,10 +93,10 @@ export function fillFontWeightOptions(
 	for (const [val, label] of options) {
 		dropdown.addOption(val, label);
 		const opt = dropdown.selectEl.options[dropdown.selectEl.options.length - 1];
-		opt.style.fontWeight = val;
+		opt.setCssStyles({ fontWeight: val });
 	}
 	dropdown.setValue(value);
-	dropdown.selectEl.style.fontWeight = value;
+	dropdown.selectEl.setCssStyles({ fontWeight: value });
 }
 
 export function populateFontWeightDropdown<W extends string>(
@@ -112,7 +112,7 @@ export function populateFontWeightDropdown<W extends string>(
 ): void {
 	fillFontWeightOptions(dropdown, value, options);
 	const applySelectedWeight = (v: W) => {
-		dropdown.selectEl.style.fontWeight = v;
+		dropdown.selectEl.setCssStyles({ fontWeight: v });
 	};
 	dropdown.onChange((v) => applyFontWeightChange(v as W, applySelectedWeight, onChange));
 }
