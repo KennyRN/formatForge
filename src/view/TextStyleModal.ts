@@ -86,21 +86,7 @@ export class TextStyleModal extends Modal {
 				label: "Body",
 				render: (body) => {
 					this.renderSizeCard(body, "Override theme's default font size", "Font size", "bodyTextOverrideSize", "bodyTextSize", 0.7, 1.8, restyle);
-					let emphasisLabelSetting: Setting | undefined;
-					const emphasisLabel = () =>
-						settings.bodyTextOverrideColor ? "Override body text's standard italic/bold colour" : "Override theme's default italic/bold colour";
-					this.renderColorOverrideCard(
-						body,
-						settings,
-						"Override theme's default font colour",
-						"Font colour",
-						"bodyTextOverrideColor",
-						"bodyTextColor",
-						restyle,
-						() => {
-							emphasisLabelSetting?.setName(emphasisLabel());
-						},
-					);
+					this.renderColorOverrideCard(body, settings, "Font colour", "bodyTextOverrideColor", "bodyTextColor", restyle);
 					this.renderFontCard(
 						body,
 						settings,
@@ -110,7 +96,7 @@ export class TextStyleModal extends Modal {
 						undefined,
 						this.regionPreviewSizeEm("bodyTextOverrideSize", "bodyTextSize"),
 					);
-					emphasisLabelSetting = this.renderEmphasisColorOverrideCard(body, settings, emphasisLabel(), restyle);
+					this.renderEmphasisColorOverrideCard(body, settings, restyle);
 					this.renderLinkStyleCard(body, settings, restyle);
 					this.renderHighlightColorOverrideCard(body, settings, restyle);
 				},
@@ -142,7 +128,7 @@ export class TextStyleModal extends Modal {
 									);
 							}),
 					);
-					this.renderColorOverrideCard(body, settings, "Override theme's default header colour", "Header colour", "heading1OverrideColor", "heading1Color", restyle);
+					this.renderColorOverrideCard(body, settings, "Header colour", "heading1OverrideColor", "heading1Color", restyle);
 					this.renderFontCard(
 						body,
 						settings,
@@ -160,7 +146,7 @@ export class TextStyleModal extends Modal {
 				label: "H2",
 				render: (body) => {
 					this.renderSizeCard(body, "Override theme's default header size", "Header size", "heading2OverrideSize", "heading2Size", 1, 2.5, restyle);
-					this.renderColorOverrideCard(body, settings, "Override theme's default header colour", "Header colour", "heading2OverrideColor", "heading2Color", restyle);
+					this.renderColorOverrideCard(body, settings, "Header colour", "heading2OverrideColor", "heading2Color", restyle);
 					this.renderFontCard(
 						body,
 						settings,
@@ -178,7 +164,7 @@ export class TextStyleModal extends Modal {
 				label: "H3",
 				render: (body) => {
 					this.renderSizeCard(body, "Override theme's default header size", "Header size", "heading3OverrideSize", "heading3Size", 1, 2.5, restyle);
-					this.renderColorOverrideCard(body, settings, "Override theme's default header colour", "Header colour", "heading3OverrideColor", "heading3Color", restyle);
+					this.renderColorOverrideCard(body, settings, "Header colour", "heading3OverrideColor", "heading3Color", restyle);
 					this.renderFontCard(
 						body,
 						settings,
@@ -222,7 +208,7 @@ export class TextStyleModal extends Modal {
 						const sizeKey = `heading${n}Size` as EditorSizeKey;
 						const overrideSizeKey = `heading${n}OverrideSize` as EditorSizeOverrideKey;
 						this.renderSizeCard(body, "Override theme's default header size", "Header size", overrideSizeKey, sizeKey, 0.7, 1.8, restyle);
-						this.renderColorOverrideCard(body, settings, "Override theme's default header colour", "Header colour", `heading${n}OverrideColor`, `heading${n}Color`, restyle);
+						this.renderColorOverrideCard(body, settings, "Header colour", `heading${n}OverrideColor`, `heading${n}Color`, restyle);
 						this.renderFontCard(
 							body,
 							settings,
@@ -456,135 +442,81 @@ export class TextStyleModal extends Modal {
 		return this.plugin.updateHostOwnedSetting(key, value);
 	}
 
+	/**
+	 * A colour swatch whose own picker carries a "Theme default" entry (at the bottom of its
+	 * colour list) in place of the old separate "Override theme's default …" toggle. Picking a
+	 * real colour turns `overrideKey` on; picking "Theme default" turns it off.
+	 */
+	private bindOverridableColorSwatch(
+		buttonEl: HTMLElement,
+		settings: FormatForgeSettings,
+		overrideKey: keyof FormatForgeSettings,
+		colorKey: keyof FormatForgeSettings,
+		restyle: () => void,
+	): void {
+		bindColorSwatchButton(
+			this.app,
+			() => this.plugin.getPalette(),
+			buttonEl,
+			settings[colorKey] as string,
+			(hex) => {
+				void (async () => {
+					await this.plugin.updateSetting(overrideKey, true);
+					await this.plugin.updateSetting(colorKey, hex);
+					restyle();
+				})();
+			},
+			{
+				isActive: !(settings[overrideKey] as boolean),
+				onSelect: () => this.plugin.updateSetting(overrideKey, false).then(() => restyle()),
+			},
+		);
+	}
+
 	private renderColorOverrideCard(
 		body: HTMLElement,
 		settings: FormatForgeSettings,
-		label: string,
 		swatchLabel: string,
 		overrideKey: keyof FormatForgeSettings,
 		colorKey: keyof FormatForgeSettings,
 		restyle: () => void,
-		onToggle?: (value: boolean) => void,
 	): void {
-		renderToggleWithRevealCard(
-			body,
-			label,
-			settings[overrideKey] as boolean,
-			(value) => {
-				void this.plugin.updateSetting(overrideKey, value).then(() => onToggle?.(value));
-			},
-			(card) => {
-				let colorSetting!: Setting;
-				card.addSetting((setting) => {
-					colorSetting = setting;
-					setting.setName(swatchLabel).addButton((button) =>
-						bindColorSwatchButton(
-							this.app,
-							() => this.plugin.getPalette(),
-							button.buttonEl,
-							settings[colorKey] as string,
-							(hex) => {
-								void this.plugin.updateSetting(colorKey, hex).then(() => restyle());
-							},
-						),
-					);
-				});
-				return colorSetting;
-			},
-			restyle,
-		);
+		const card = new SettingGroup(body);
+		card.addSetting((setting) => {
+			setting.setName(swatchLabel).addButton((button) =>
+				this.bindOverridableColorSwatch(button.buttonEl, settings, overrideKey, colorKey, restyle),
+			);
+		});
 	}
 
-	private renderEmphasisColorOverrideCard(body: HTMLElement, settings: FormatForgeSettings, label: string, restyle: () => void): Setting {
+	private renderEmphasisColorOverrideCard(body: HTMLElement, settings: FormatForgeSettings, restyle: () => void): void {
 		const card = new SettingGroup(body);
-
-		let toggle!: ToggleComponent;
-		let toggleSetting!: Setting;
 		card.addSetting((setting) => {
-			toggleSetting = setting;
-			setting.setName(label).addToggle((t) => {
-				toggle = t;
-				t.setValue(settings.bodyTextOverrideEmphasisColor);
-			});
-		});
-
-		let boldColorSetting!: Setting;
-		card.addSetting((setting) => {
-			boldColorSetting = setting;
 			setting.setName("Bold colour").addButton((button) =>
-				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, settings.bodyTextBoldColor, (hex) => {
-					void this.plugin.updateSetting("bodyTextBoldColor", hex).then(() => restyle());
-				}),
+				this.bindOverridableColorSwatch(button.buttonEl, settings, "bodyTextOverrideEmphasisColor", "bodyTextBoldColor", restyle),
 			);
 		});
-
-		let italicColorSetting!: Setting;
 		card.addSetting((setting) => {
-			italicColorSetting = setting;
 			setting.setName("Italic colour").addButton((button) =>
-				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, settings.bodyTextItalicColor, (hex) => {
-					void this.plugin.updateSetting("bodyTextItalicColor", hex).then(() => restyle());
-				}),
+				this.bindOverridableColorSwatch(button.buttonEl, settings, "bodyTextOverrideItalicColor", "bodyTextItalicColor", restyle),
 			);
 		});
-
-		const applyVisibility = (hidden: boolean) => {
-			boldColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			italicColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-		};
-		toggle.onChange((value) => {
-			void this.plugin.updateSetting("bodyTextOverrideEmphasisColor", value).then(() => {
-				applyVisibility(!value);
-				restyle();
-			});
-		});
-		applyVisibility(!toggle.getValue());
-
-		return toggleSetting;
 	}
 
 	private renderLinkStyleCard(body: HTMLElement, settings: FormatForgeSettings, restyle: () => void): void {
 		const card = new SettingGroup(body);
 
-		let colorToggle!: ToggleComponent;
 		card.addSetting((setting) => {
-			setting.setName("Override theme's default link colour").addToggle((t) => {
-				colorToggle = t;
-				t.setValue(settings.bodyLinkOverrideColor);
-			});
-		});
-
-		let linkColorSetting!: Setting;
-		card.addSetting((setting) => {
-			linkColorSetting = setting;
 			setting.setName("Link colour").addButton((button) =>
-				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, settings.bodyLinkColor, (hex) => {
-					void this.plugin.updateSetting("bodyLinkColor", hex).then(() => restyle());
-				}),
+				this.bindOverridableColorSwatch(button.buttonEl, settings, "bodyLinkOverrideColor", "bodyLinkColor", restyle),
 			);
 		});
 
-		let linkHoverColorSetting!: Setting;
 		card.addSetting((setting) => {
-			linkHoverColorSetting = setting;
 			setting.setName("Hovered link colour").addButton((button) =>
-				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, settings.bodyLinkHoverColor, (hex) => {
-					void this.plugin.updateSetting("bodyLinkHoverColor", hex).then(() => restyle());
-				}),
+				this.bindOverridableColorSwatch(button.buttonEl, settings, "bodyLinkOverrideHoverColor", "bodyLinkHoverColor", restyle),
 			);
 		});
-
-		const applyColorVisibility = (hidden: boolean) => {
-			linkColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			linkHoverColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-		};
-		colorToggle.onChange((value) => {
-			void this.plugin.updateSetting("bodyLinkOverrideColor", value).then(() => {
-				applyColorVisibility(!value);
-				restyle();
-			});
-		});
-		applyColorVisibility(!colorToggle.getValue());
 
 		card.addSetting((setting) => {
 			setting
@@ -601,45 +533,17 @@ export class TextStyleModal extends Modal {
 	private renderHighlightColorOverrideCard(body: HTMLElement, settings: FormatForgeSettings, restyle: () => void): void {
 		const card = new SettingGroup(body);
 
-		let toggle!: ToggleComponent;
 		card.addSetting((setting) => {
-			setting.setName("Override theme's default highlight colours").addToggle((t) => {
-				toggle = t;
-				t.setValue(settings.bodyHighlightOverride);
-			});
-		});
-
-		let bgColorSetting!: Setting;
-		card.addSetting((setting) => {
-			bgColorSetting = setting;
 			setting.setName("Highlight colour").addButton((button) =>
-				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, settings.bodyHighlightBgColor, (hex) => {
-					void this.plugin.updateSetting("bodyHighlightBgColor", hex).then(() => restyle());
-				}),
+				this.bindOverridableColorSwatch(button.buttonEl, settings, "bodyHighlightOverride", "bodyHighlightBgColor", restyle),
 			);
 		});
 
-		let textColorSetting!: Setting;
 		card.addSetting((setting) => {
-			textColorSetting = setting;
 			setting.setName("Highlighted text colour").addButton((button) =>
-				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, settings.bodyHighlightTextColor, (hex) => {
-					void this.plugin.updateSetting("bodyHighlightTextColor", hex).then(() => restyle());
-				}),
+				this.bindOverridableColorSwatch(button.buttonEl, settings, "bodyHighlightOverrideText", "bodyHighlightTextColor", restyle),
 			);
 		});
-
-		const applyVisibility = (hidden: boolean) => {
-			bgColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			textColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-		};
-		toggle.onChange((value) => {
-			void this.plugin.updateSetting("bodyHighlightOverride", value).then(() => {
-				applyVisibility(!value);
-				restyle();
-			});
-		});
-		applyVisibility(!toggle.getValue());
 	}
 
 	private renderFontCard(

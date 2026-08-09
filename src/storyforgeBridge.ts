@@ -24,6 +24,24 @@ export interface SfFontResolveResult {
 	variation: string | null;
 }
 
+export interface SfFontInfo {
+	id: string;
+	label: string;
+	weightMin: number;
+	weightMax: number;
+}
+
+export interface SfOpenFontPickerOptions {
+	currentFamilyId: string;
+	previewFontSizeEm: number;
+	onPick: (familyId: string) => void;
+	/** Present when storyForge's field has an "override vs theme default" concept — mirrors
+	 * FontPickerModal's own `themeDefault` option: appends a "Theme default" row, selected when
+	 * `isThemeDefault` is true, calling `onPickThemeDefault` instead of `onPick` when chosen. */
+	isThemeDefault?: boolean;
+	onPickThemeDefault?: () => void;
+}
+
 export interface SfFormatCompanionRegistration {
 	pluginId: string;
 	version: number;
@@ -31,6 +49,10 @@ export interface SfFormatCompanionRegistration {
 	onHostStylesApplied?: () => void;
 	resolveFont?: (familyId: string, weight: number) => SfFontResolveResult | null;
 	registerFacesForDocument?: (doc: Document) => void;
+	/** List formatForge's font catalog — mirrors the same method already exposed to timelineForge. */
+	listFonts?: () => SfFontInfo[];
+	/** Open formatForge's own font-picker modal, scoped to one storyForge field. */
+	openFontPicker?: (opts: SfOpenFontPickerOptions) => void;
 }
 
 // ── Linked key contract (generated from storyForge host) ──────────────────

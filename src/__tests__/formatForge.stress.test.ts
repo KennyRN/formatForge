@@ -40,12 +40,12 @@ function buildEditorStyleVars(s: FormatForgeSettings): Record<string, string | n
 	assignFont("--sf-body", s.bodyTextOverrideFont, s.bodyTextFontFamily, s.bodyTextFontWeight);
 	vars["--sf-body-color"] = s.bodyTextOverrideColor ? s.bodyTextColor : null;
 	vars["--sf-body-bold-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextBoldColor : null;
-	vars["--sf-body-italic-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextItalicColor : null;
+	vars["--sf-body-italic-color"] = s.bodyTextOverrideItalicColor ? s.bodyTextItalicColor : null;
 	vars["--sf-body-link-color"] = s.bodyLinkOverrideColor ? s.bodyLinkColor : null;
-	vars["--sf-body-link-color-hover"] = s.bodyLinkOverrideColor ? s.bodyLinkHoverColor : null;
+	vars["--sf-body-link-color-hover"] = s.bodyLinkOverrideHoverColor ? s.bodyLinkHoverColor : null;
 	vars["--sf-body-link-decoration"] = s.bodyLinkRemoveUnderline ? "none" : null;
 	vars["--sf-body-highlight-bg"] = s.bodyHighlightOverride ? s.bodyHighlightBgColor : null;
-	vars["--sf-body-highlight-color"] = s.bodyHighlightOverride ? s.bodyHighlightTextColor : null;
+	vars["--sf-body-highlight-color"] = s.bodyHighlightOverrideText ? s.bodyHighlightTextColor : null;
 
 	assignFont("--sf-h1", s.heading1OverrideFont, s.heading1FontFamily, s.heading1FontWeight);
 	vars["--sf-h1-color"] = s.heading1OverrideColor ? s.heading1Color : null;
@@ -206,9 +206,12 @@ describe("formatForge settings + style var stress", () => {
 			bodyTextOverrideColor: true,
 			bodyTextOverrideFont: true,
 			bodyTextOverrideEmphasisColor: true,
+			bodyTextOverrideItalicColor: true,
 			bodyLinkOverrideColor: true,
+			bodyLinkOverrideHoverColor: true,
 			bodyLinkRemoveUnderline: true,
 			bodyHighlightOverride: true,
+			bodyHighlightOverrideText: true,
 			hideHeading1Links: true,
 			heading1OverrideColor: true,
 			heading1OverrideFont: true,
@@ -231,6 +234,8 @@ describe("formatForge settings + style var stress", () => {
 			const vars = buildEditorStyleVars(on);
 			expect(vars["--sf-body-color"]).toBe(on.bodyTextColor);
 			expect(vars["--sf-body-family"]).toContain("storyForge");
+			expect(vars["--sf-body-bold-color"]).toBe(on.bodyTextBoldColor);
+			expect(vars["--sf-body-italic-color"]).toBe(on.bodyTextItalicColor);
 			expect(vars["--sf-body-link-color"]).toBe(on.bodyLinkColor);
 			expect(vars["--sf-body-link-color-hover"]).toBe(on.bodyLinkHoverColor);
 			expect(vars["--sf-body-link-decoration"]).toBe("none");

@@ -136,7 +136,7 @@ export class FormatForgeSettingsTab extends PluginSettingTab {
 						desc: "Light or dark variant of the selected palette.",
 						visible: () => {
 							const name = this.plugin.getPalette().name;
-							return isPresetPaletteName(name) && COLOR_PALETTES[name].length > 0;
+							return isPresetPaletteName(name) && COLOR_PALETTES[name].length > 1;
 						},
 						control: {
 							type: "dropdown",

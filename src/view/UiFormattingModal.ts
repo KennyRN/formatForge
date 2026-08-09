@@ -435,50 +435,65 @@ export class UiFormattingModal extends Modal {
 			});
 	}
 
+	/**
+	 * Shared by Unplaced/Codex/Archive (which have a visible header to size, font, and
+	 * small-cap) and Story Context (which doesn't — its "header colour" survives only as the
+	 * base colour the "use for all" toggle spreads to every other Story Context colour, so
+	 * `sizeKey`/`overrideFontKey`/`fontFamilyKey`/`fontWeightKey`/`smallCapsKey` are omitted
+	 * there and the labels swap to `colorLabel`/`useForAllLabel`).
+	 */
 	private renderHeaderStyleGroup(
 		body: HTMLElement,
 		s: Record<string, unknown>,
 		sfApi: SfFormattingApi,
 		sfHost: FontCardHost,
 		config: {
-			sizeKey: SfLinkedFormattingKey;
-			overrideFontKey: SfLinkedFormattingKey;
-			fontFamilyKey: SfLinkedFormattingKey;
-			fontWeightKey: SfLinkedFormattingKey;
+			sizeKey?: SfLinkedFormattingKey;
+			overrideFontKey?: SfLinkedFormattingKey;
+			fontFamilyKey?: SfLinkedFormattingKey;
+			fontWeightKey?: SfLinkedFormattingKey;
 			colorKey: SfLinkedFormattingKey;
 			mutedKey: SfLinkedFormattingKey;
-			smallCapsKey: SfLinkedFormattingKey;
+			smallCapsKey?: SfLinkedFormattingKey;
 			useHeaderColorForAllKey: SfLinkedFormattingKey;
+			colorLabel?: string;
+			useForAllLabel?: string;
 		},
 	): ToggleComponent {
 		const group = new SettingGroup(body);
 		let useHeaderColorForAllToggle!: ToggleComponent;
-		group.addSetting((setting) => {
-			setting
-				.setName("Header size")
-				.setDesc("Size of header label and icon.")
-				.addSlider((slider) =>
-					slider
-						.setLimits(0.5, 1.5, 0.1)
-						.setValue(s[config.sizeKey] as number)
-						.onChange((value) => void sfApi.updateLinkedSetting(config.sizeKey, value)),
-				);
-		});
-		renderCustomFontCard({
-			host: sfHost,
-			app: this.app,
-			previewFontSizeEm: () => Number(sfHost.getSettings()[config.sizeKey]) || 1,
-			settings: s,
-			group,
-			overrideFontKey: config.overrideFontKey,
-			fontFamilyKey: config.fontFamilyKey,
-			fontWeightKey: config.fontWeightKey,
-			restyle: () => sfApi.applyLinkedStyles(),
-		});
+		if (config.sizeKey) {
+			const sizeKey = config.sizeKey;
+			group.addSetting((setting) => {
+				setting
+					.setName("Header size")
+					.setDesc("Size of header label and icon.")
+					.addSlider((slider) =>
+						slider
+							.setLimits(0.5, 1.5, 0.1)
+							.setValue(s[sizeKey] as number)
+							.onChange((value) => void sfApi.updateLinkedSetting(sizeKey, value)),
+					);
+			});
+		}
+		if (config.overrideFontKey && config.fontFamilyKey && config.fontWeightKey) {
+			const sizeKey = config.sizeKey;
+			renderCustomFontCard({
+				host: sfHost,
+				app: this.app,
+				previewFontSizeEm: () => (sizeKey ? Number(sfHost.getSettings()[sizeKey]) || 1 : 1),
+				settings: s,
+				group,
+				overrideFontKey: config.overrideFontKey,
+				fontFamilyKey: config.fontFamilyKey,
+				fontWeightKey: config.fontWeightKey,
+				restyle: () => sfApi.applyLinkedStyles(),
+			});
+		}
 		group
 			.addSetting((setting) => {
 				setting
-					.setName("Header colour")
+					.setName(config.colorLabel ?? "Header colour")
 					.addButton((button) =>
 						bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s[config.colorKey] as string, (hex) => {
 							void sfApi.updateLinkedSetting(config.colorKey, hex);
@@ -487,8 +502,8 @@ export class UiFormattingModal extends Modal {
 			})
 			.addSetting((setting) => {
 				setting
-					.setName("Use header colour for all colour options")
-					.setDesc("Use the header colour everywhere below instead of picking separate colours.")
+					.setName(config.useForAllLabel ?? "Use header colour for all colour options")
+					.setDesc(`Use the ${(config.colorLabel ?? "header colour").toLowerCase()} everywhere below instead of picking separate colours.`)
 					.addToggle((toggle) => {
 						useHeaderColorForAllToggle = toggle;
 						toggle.setValue(s[config.useHeaderColorForAllKey] as boolean);
@@ -497,23 +512,26 @@ export class UiFormattingModal extends Modal {
 			.addSetting((setting) => {
 				setting
 					.setName("Muted")
-					.setDesc("Override header colour with muted colour.")
+					.setDesc(`Override ${(config.colorLabel ?? "header colour").toLowerCase()} with muted colour.`)
 					.addToggle((toggle) =>
 						toggle
 							.setValue(s[config.mutedKey] as boolean)
 							.onChange((value) => void sfApi.updateLinkedSetting(config.mutedKey, value)),
 					);
-			})
-			.addSetting((setting) => {
+			});
+		if (config.smallCapsKey) {
+			const smallCapsKey = config.smallCapsKey;
+			group.addSetting((setting) => {
 				setting
 					.setName("Small caps")
 					.addToggle((toggle) =>
 						toggle
-							.setValue(s[config.smallCapsKey] as boolean)
-							.onChange((value) => void sfApi.updateLinkedSetting(config.smallCapsKey, value)),
+							.setValue(s[smallCapsKey] as boolean)
+							.onChange((value) => void sfApi.updateLinkedSetting(smallCapsKey, value)),
 					);
 				setting.nameEl.addClass("sf-small-caps-label");
 			});
+		}
 		return useHeaderColorForAllToggle;
 	}
 
@@ -781,8 +799,9 @@ export class UiFormattingModal extends Modal {
 	}
 
 	/**
-	 * Chrome shared by the right sidebar: Forge companion icons plus the Story Context
-	 * header and its Novel / Chapter / Dossier tab strip.
+	 * Chrome shared by the right sidebar: Forge companion icons, the Story Context panel's
+	 * base colour (no header remains to size/font — see renderHeaderStyleGroup), and its
+	 * Novel / Chapter / Details / Dossier tab strip.
 	 */
 	private renderPanelChromeContent(
 		body: HTMLElement,
@@ -805,17 +824,14 @@ export class UiFormattingModal extends Modal {
 		});
 
 		const useHeaderColorToggle = this.renderHeaderStyleGroup(body, s, sfApi, sfHost, {
-			sizeKey: "recommendHeaderFontSize",
-			overrideFontKey: "recommendHeaderOverrideFont",
-			fontFamilyKey: "recommendHeaderFontFamily",
-			fontWeightKey: "recommendHeaderFontWeight",
 			colorKey: "recommendHeaderColor",
 			mutedKey: "recommendHeaderMuted",
-			smallCapsKey: "recommendHeaderSmallCaps",
 			useHeaderColorForAllKey: "recommendUseHeaderColorForAll",
+			colorLabel: "Base colour",
+			useForAllLabel: "Use base colour for all colour options",
 		});
 
-		// Novel | Chapter | Dossier tabs
+		// Novel | Chapter | Details | Dossier tabs
 		const tabsGroup = new SettingGroup(body);
 		tabsGroup.addSetting((setting) => {
 			setting

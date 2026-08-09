@@ -21,6 +21,31 @@ import { CUSTOM_FONTS, registerCustomFontFaces, resolveCustomFontFamilyParts } f
 import { FormatForgeSettingsTab } from "./view/FormatForgeSettingsTab";
 import type { FontCardHost } from "./view/styleModalHelpers";
 
+/**
+ * Bold/Italic, Link/Hovered-link, and Highlight/Highlighted-text colours used to share one
+ * override flag per pair; each swatch now carries its own so either can independently sit at
+ * "Theme default". On first load after upgrading, seed the new flag from its old shared
+ * partner so a pair the user had already overridden doesn't silently revert to theme default.
+ */
+const PAIRED_OVERRIDE_MIGRATIONS: ReadonlyArray<{ from: keyof FormatForgeSettings; to: keyof FormatForgeSettings }> = [
+	{ from: "bodyTextOverrideEmphasisColor", to: "bodyTextOverrideItalicColor" },
+	{ from: "bodyLinkOverrideColor", to: "bodyLinkOverrideHoverColor" },
+	{ from: "bodyHighlightOverride", to: "bodyHighlightOverrideText" },
+];
+
+/** Fresh installs (`data` null) already have the correct defaults; nothing to migrate. */
+function migratePairedOverrideFlags(settings: FormatForgeSettings, data: Partial<FormatForgeSettings> | null): boolean {
+	if (!data) return false;
+	let migrated = false;
+	for (const { from, to } of PAIRED_OVERRIDE_MIGRATIONS) {
+		if (!(to in data) && data[from]) {
+			(settings[to] as boolean) = true;
+			migrated = true;
+		}
+	}
+	return migrated;
+}
+
 export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	private ffSettings: FormatForgeSettings = { ...DEFAULT_SETTINGS };
 	private sfApi: SfFormattingApi | null = null;
@@ -211,12 +236,12 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		this.assignEditorFontVars(vars, "--sf-body", s.bodyTextOverrideFont, s.bodyTextFontFamily, s.bodyTextFontWeight);
 		vars["--sf-body-color"] = s.bodyTextOverrideColor ? s.bodyTextColor : null;
 		vars["--sf-body-bold-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextBoldColor : null;
-		vars["--sf-body-italic-color"] = s.bodyTextOverrideEmphasisColor ? s.bodyTextItalicColor : null;
+		vars["--sf-body-italic-color"] = s.bodyTextOverrideItalicColor ? s.bodyTextItalicColor : null;
 		vars["--sf-body-link-color"] = s.bodyLinkOverrideColor ? s.bodyLinkColor : null;
-		vars["--sf-body-link-color-hover"] = s.bodyLinkOverrideColor ? s.bodyLinkHoverColor : null;
+		vars["--sf-body-link-color-hover"] = s.bodyLinkOverrideHoverColor ? s.bodyLinkHoverColor : null;
 		vars["--sf-body-link-decoration"] = s.bodyLinkRemoveUnderline ? "none" : null;
 		vars["--sf-body-highlight-bg"] = s.bodyHighlightOverride ? s.bodyHighlightBgColor : null;
-		vars["--sf-body-highlight-color"] = s.bodyHighlightOverride ? s.bodyHighlightTextColor : null;
+		vars["--sf-body-highlight-color"] = s.bodyHighlightOverrideText ? s.bodyHighlightTextColor : null;
 
 		// Sizes: storyForge linked settings when present, otherwise formatForge's own.
 		if (this.sfApi) {
@@ -592,6 +617,26 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 				registerFacesForDocument: (doc) => {
 					void registerCustomFontFaces(doc);
 				},
+				listFonts: () =>
+					CUSTOM_FONTS.map((f) => ({
+						id: f.id,
+						label: f.label,
+						weightMin: f.weightMin,
+						weightMax: f.weightMax,
+					})),
+				openFontPicker: (opts) => {
+					void import("./view/FontPickerModal").then(({ FontPickerModal }) => {
+						new FontPickerModal(
+							this.app,
+							opts.currentFamilyId,
+							opts.previewFontSizeEm,
+							(id) => opts.onPick(id),
+							opts.onPickThemeDefault
+								? { isActive: !!opts.isThemeDefault, onSelect: () => opts.onPickThemeDefault?.() }
+								: undefined,
+						).open();
+					});
+				},
 			});
 
 			for (const doc of sfApi.getStyleDocuments()) {
@@ -712,12 +757,14 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			{ ...DEFAULT_SETTINGS, customPaletteColors: DEFAULT_SETTINGS.customPaletteColors.map((c) => ({ ...c })) },
 			data ?? {},
 		);
+		const migrated = migratePairedOverrideFlags(settings, data);
 		this.ffSettings = settings;
 		if (rejected.length > 0) {
 			console.warn(
 				`formatForge: ignored ${rejected.length} invalid saved setting(s): ${rejected.join(", ")}`,
 			);
 		}
+		if (migrated) await this.saveSettings();
 	}
 
 	private async saveSettings(): Promise<void> {

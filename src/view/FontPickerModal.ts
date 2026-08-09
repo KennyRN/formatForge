@@ -4,10 +4,17 @@ import { weightNameFor, weightPreviewLabel } from "./fontPickerUtils";
 
 export type FontPickerSelectHandler = (fontId: string) => void | Promise<void>;
 
+/** Appends a "Theme default" choice after every real font, for callers with an override concept. */
+export interface FontPickerThemeDefaultOption {
+	isActive: boolean;
+	onSelect: () => void | Promise<void>;
+}
+
 /**
  * Alphabetised font catalogue in three columns: thinnest weight name | face name
  * (normal) | heaviest weight name. Fixed-weight faces (e.g. Courier Prime) show
- * only the face name in the centre column.
+ * only the face name in the centre column. When `themeDefault` is supplied, a
+ * "Theme default" row is appended at the very bottom, after every real font.
  */
 export class FontPickerModal extends Modal {
 	constructor(
@@ -15,6 +22,7 @@ export class FontPickerModal extends Modal {
 		private selectedId: string,
 		private previewFontSizeEm: number,
 		private onSelect: FontPickerSelectHandler,
+		private themeDefault?: FontPickerThemeDefaultOption,
 	) {
 		super(app);
 	}
@@ -42,6 +50,23 @@ export class FontPickerModal extends Modal {
 		for (const font of fonts) {
 			this.renderFontRow(list, font, sizeEm);
 		}
+		if (this.themeDefault) this.renderThemeDefaultRow(list, this.themeDefault);
+	}
+
+	private renderThemeDefaultRow(list: HTMLElement, themeDefault: FontPickerThemeDefaultOption): void {
+		const row = list.createDiv({ cls: "ff-font-picker-row ff-font-picker-theme-default" });
+		if (themeDefault.isActive) row.addClass("is-selected");
+		row.createDiv({ cls: "ff-font-picker-cell is-min" });
+		row.createSpan({ cls: "ff-font-picker-sample ff-font-picker-cell is-normal", text: "Theme default" });
+		row.createDiv({ cls: "ff-font-picker-cell is-max" });
+		row.addEventListener("click", () => {
+			void this.chooseThemeDefault(themeDefault);
+		});
+	}
+
+	private async chooseThemeDefault(themeDefault: FontPickerThemeDefaultOption): Promise<void> {
+		await themeDefault.onSelect();
+		this.close();
 	}
 
 	private renderFontRow(list: HTMLElement, font: CustomFontEntry, sizeEm: number): void {

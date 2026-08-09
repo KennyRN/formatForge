@@ -49,15 +49,20 @@ export interface FormatForgeSettings {
 	bodyTextOverrideFont: boolean;
 	bodyTextFontFamily: string;
 	bodyTextFontWeight: FontWeight;
+	/** Governs the Bold colour swatch only; Italic has its own flag below (each swatch's own "Theme default" entry is independent). */
 	bodyTextOverrideEmphasisColor: boolean;
 	bodyTextBoldColor: string;
+	bodyTextOverrideItalicColor: boolean;
 	bodyTextItalicColor: string;
 	bodyLinkOverrideColor: boolean;
 	bodyLinkColor: string;
+	bodyLinkOverrideHoverColor: boolean;
 	bodyLinkHoverColor: string;
 	bodyLinkRemoveUnderline: boolean;
+	/** Governs the Highlight colour (background) swatch only; text has its own flag below. */
 	bodyHighlightOverride: boolean;
 	bodyHighlightBgColor: string;
+	bodyHighlightOverrideText: boolean;
 	bodyHighlightTextColor: string;
 
 	// ── Heading 1 ──────────────────────────────────────────────────
@@ -166,13 +171,16 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	bodyTextFontWeight: "400",
 	bodyTextOverrideEmphasisColor: false,
 	bodyTextBoldColor: "#ffffff",
+	bodyTextOverrideItalicColor: false,
 	bodyTextItalicColor: "#c8c8c8",
 	bodyLinkOverrideColor: false,
 	bodyLinkColor: "#7eb8da",
+	bodyLinkOverrideHoverColor: false,
 	bodyLinkHoverColor: "#a8d4ef",
 	bodyLinkRemoveUnderline: false,
 	bodyHighlightOverride: false,
 	bodyHighlightBgColor: "#e0af68",
+	bodyHighlightOverrideText: false,
 	bodyHighlightTextColor: "#1a1a1a",
 
 	// H1

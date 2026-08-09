@@ -184,6 +184,13 @@
 	border: 1px solid var(--background-modifier-border);
 }
 
+/* Sitting at "Theme default" — no fixed hex to show, so a dashed placeholder instead of a fill. */
+.sf-color-swatch-btn--theme-default {
+	border-style: dashed;
+	background-image: linear-gradient(45deg, var(--background-modifier-border) 25%, transparent 25%, transparent 50%, var(--background-modifier-border) 50%, var(--background-modifier-border) 75%, transparent 75%, transparent);
+	background-size: 6px 6px;
+}
+
 /* ── Visibility helpers ────────────────────────────────────────────────── */
 
 .sf-settings-hidden:not(#storyforge-specificity-boost) {
@@ -236,6 +243,28 @@
 	font-family: var(--font-monospace);
 	font-size: var(--font-ui-smaller);
 	color: var(--text-faint);
+}
+
+/* Always the last row — a divider sets it apart from the real palette colours above it. */
+.sf-palette-row.sf-palette-theme-default {
+	margin-top: 4px;
+	padding-top: 6px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.sf-palette-row.sf-palette-theme-default .sf-palette-name {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.sf-palette-row.sf-palette-theme-default.is-selected {
+	background: var(--background-modifier-hover);
+}
+
+/* No fixed hex to show — a diagonal "empty" pattern instead of a solid fill. */
+.sf-palette-swatch.is-theme-default {
+	background-image: linear-gradient(45deg, var(--background-modifier-border) 25%, transparent 25%, transparent 50%, var(--background-modifier-border) 50%, var(--background-modifier-border) 75%, transparent 75%, transparent);
+	background-size: 6px 6px;
 }
 
 /* ── Formatting export modal ───────────────────────────────────────────── */
@@ -931,6 +960,18 @@
 .ff-font-picker-row.is-selected {
 	background: var(--background-modifier-hover);
 	box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+/* Always the last row — a divider sets it apart from the real font catalogue above it. */
+.ff-font-picker-row.ff-font-picker-theme-default {
+	margin-top: 6px;
+	border-top: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+}
+
+.ff-font-picker-row.ff-font-picker-theme-default .ff-font-picker-sample {
+	color: var(--text-muted);
+	font-style: italic;
 }
 
 .ff-font-picker-cell {
