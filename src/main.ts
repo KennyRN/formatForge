@@ -750,7 +750,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	// ── Persistence ───────────────────────────────────────────────────────
 
 	private async loadSettings(): Promise<void> {
-		const data: Partial<FormatForgeSettings> | null = await this.loadData();
+		const data = (await this.loadData()) as Partial<FormatForgeSettings> | null;
 		// A hand-edited or downgraded data.json must not be able to feed a bad enum into
 		// the CSS variable maps; rejected values fall back to the defaults.
 		const { settings, rejected } = coerceSettings(
