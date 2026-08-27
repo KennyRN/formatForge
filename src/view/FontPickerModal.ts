@@ -1,6 +1,6 @@
-import { App, Modal } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 import { CUSTOM_FONTS, registerCustomFontFaces, type CustomFontEntry } from "../fonts";
-import { weightNameFor, weightPreviewLabel } from "./fontPickerUtils";
+import { displayNameFromComputedFontFamily, weightNameFor, weightPreviewLabel } from "./fontPickerUtils";
 
 export type FontPickerSelectHandler = (fontId: string) => void | Promise<void>;
 
@@ -8,13 +8,23 @@ export type FontPickerSelectHandler = (fontId: string) => void | Promise<void>;
 export interface FontPickerThemeDefaultOption {
 	isActive: boolean;
 	onSelect: () => void | Promise<void>;
+	/** CSS `font-family` used to preview the theme-default row. */
+	previewFamily?: string;
+}
+
+/** Small-caps toggle inside the picker; samples update live. */
+export interface FontPickerSmallCapsOption {
+	enabled: boolean;
+	onChange: (enabled: boolean) => void | Promise<void>;
 }
 
 /**
  * Alphabetised font catalogue in three columns: thinnest weight name | face name
  * (normal) | heaviest weight name. Fixed-weight faces (e.g. Courier Prime) show
  * only the face name in the centre column. When `themeDefault` is supplied, a
- * "Theme default" row is appended at the very bottom, after every real font.
+ * theme-default row is appended at the very bottom, previewed in the actual
+ * default face. When `smallCaps` is supplied, a toggle above the list applies
+ * small-caps to every sample live.
  */
 export class FontPickerModal extends Modal {
 	constructor(
@@ -23,6 +33,7 @@ export class FontPickerModal extends Modal {
 		private previewFontSizeEm: number,
 		private onSelect: FontPickerSelectHandler,
 		private themeDefault?: FontPickerThemeDefaultOption,
+		private smallCaps?: FontPickerSmallCapsOption,
 	) {
 		super(app);
 	}
@@ -45,23 +56,66 @@ export class FontPickerModal extends Modal {
 
 		const sizeEm = Number.isFinite(this.previewFontSizeEm) && this.previewFontSizeEm > 0 ? this.previewFontSizeEm : 1;
 		const list = contentEl.createDiv({ cls: "ff-font-picker-list" });
+		if (this.smallCaps?.enabled) list.addClass("is-small-caps");
+
+		if (this.smallCaps) {
+			const toolbar = contentEl.createDiv({ cls: "ff-font-picker-toolbar" });
+			contentEl.insertBefore(toolbar, list);
+			new Setting(toolbar)
+				.setName("Small caps")
+				.addToggle((toggle) => {
+					toggle.setValue(this.smallCaps!.enabled).onChange((value) => {
+						this.smallCaps!.enabled = value;
+						list.toggleClass("is-small-caps", value);
+						void this.smallCaps!.onChange(value);
+					});
+				}).nameEl.addClass("sf-small-caps-label");
+		}
+
 		const fonts = [...CUSTOM_FONTS].sort((a, b) => a.label.localeCompare(b.label));
 
 		for (const font of fonts) {
 			this.renderFontRow(list, font, sizeEm);
 		}
-		if (this.themeDefault) this.renderThemeDefaultRow(list, this.themeDefault);
+		if (this.themeDefault) this.renderThemeDefaultRow(list, this.themeDefault, sizeEm);
 	}
 
-	private renderThemeDefaultRow(list: HTMLElement, themeDefault: FontPickerThemeDefaultOption): void {
+	private renderThemeDefaultRow(list: HTMLElement, themeDefault: FontPickerThemeDefaultOption, sizeEm: number): void {
 		const row = list.createDiv({ cls: "ff-font-picker-row ff-font-picker-theme-default" });
 		if (themeDefault.isActive) row.addClass("is-selected");
-		row.createDiv({ cls: "ff-font-picker-cell is-min" });
-		row.createSpan({ cls: "ff-font-picker-sample ff-font-picker-cell is-normal", text: "Theme default" });
-		row.createDiv({ cls: "ff-font-picker-cell is-max" });
+		row.setCssStyles({ fontSize: `${sizeEm}em` });
+		const family = themeDefault.previewFamily ?? "var(--font-interface)";
+
+		this.renderThemeSample(row, family, 300, weightNameFor(300), "is-min");
+		const nameSample = this.renderThemeSample(row, family, 400, "Theme default", "is-normal");
+		this.renderThemeSample(row, family, 700, weightNameFor(700), "is-max");
+
+		const computed = nameSample.ownerDocument.defaultView?.getComputedStyle(nameSample).fontFamily ?? "";
+		nameSample.setText(displayNameFromComputedFontFamily(computed));
+		nameSample.setAttr("title", "Theme default");
+
 		row.addEventListener("click", () => {
 			void this.chooseThemeDefault(themeDefault);
 		});
+	}
+
+	private renderThemeSample(
+		row: HTMLElement,
+		family: string,
+		weight: number,
+		text: string,
+		slotClass: "is-min" | "is-normal" | "is-max",
+	): HTMLElement {
+		const sample = row.createSpan({
+			cls: `ff-font-picker-sample ff-font-picker-cell ${slotClass}`,
+			text,
+		});
+		sample.setCssStyles({
+			fontFamily: family,
+			fontWeight: String(weight),
+			fontStyle: "normal",
+		});
+		return sample;
 	}
 
 	private async chooseThemeDefault(themeDefault: FontPickerThemeDefaultOption): Promise<void> {

@@ -101,6 +101,33 @@ export const SETTING_VALIDATORS: Record<keyof FormatForgeSettings, Predicate> = 
 	bodyHighlightOverrideText: isBoolean,
 	bodyHighlightTextColor: isNonEmptyString,
 
+	codeOverrideSize: isBoolean,
+	codeSize: isSize,
+	codeOverrideColor: isBoolean,
+	codeColor: isNonEmptyString,
+	codeOverrideFont: isBoolean,
+	codeFontFamily: isString,
+	codeFontWeight: isFontWeight,
+	codeOverrideBg: isBoolean,
+	codeBgColor: isNonEmptyString,
+
+	blockquoteOverrideSize: isBoolean,
+	blockquoteSize: isSize,
+	blockquoteOverrideColor: isBoolean,
+	blockquoteColor: isNonEmptyString,
+	blockquoteOverrideFont: isBoolean,
+	blockquoteFontFamily: isString,
+	blockquoteFontWeight: isFontWeight,
+	blockquoteOverrideBg: isBoolean,
+	blockquoteBgColor: isNonEmptyString,
+	blockquoteOverrideBorder: isBoolean,
+	blockquoteBorderColor: isNonEmptyString,
+
+	orderedListOverrideColor: isBoolean,
+	orderedListColor: isNonEmptyString,
+	unorderedListOverrideColor: isBoolean,
+	unorderedListColor: isNonEmptyString,
+
 	hideHeading1Links: isBoolean,
 
 	...headingValidators(),

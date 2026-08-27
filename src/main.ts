@@ -1,4 +1,4 @@
-import { Plugin } from "obsidian";
+import { Notice, Plugin } from "obsidian";
 import type { PaletteName } from "./colorPalettes";
 import {
 	DEFAULT_SETTINGS,
@@ -19,6 +19,9 @@ import {
 import { getTfFormattingApi, type TfFormattingApi } from "./timelineForgeBridge";
 import { CUSTOM_FONTS, registerCustomFontFaces, resolveCustomFontFamilyParts } from "./fonts";
 import { FormatForgeSettingsTab } from "./view/FormatForgeSettingsTab";
+import { FormatForgeSettingsModal } from "./view/FormatForgeSettingsModal";
+import { TextStyleModal } from "./view/TextStyleModal";
+import { FormattingExportModal } from "./view/FormattingExportModal";
 import type { FontCardHost } from "./view/styleModalHelpers";
 
 /**
@@ -61,13 +64,6 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 		this.addSettingTab(new FormatForgeSettingsTab(this.app, this));
 		this.addCommands();
-		// Same action as the "Open text styling" command — a one-click shortcut that skips
-		// Settings entirely.
-		this.addRibbonIcon("type", "Open text styling", () => {
-			void import("./view/TextStyleModal").then(({ TextStyleModal }) => {
-				new TextStyleModal(this.app, this, this.sfApi).open();
-			});
-		});
 
 		// Soft-connect optional Forge hosts once the workspace is ready.
 		this.app.workspace.onLayoutReady(() => {
@@ -243,6 +239,20 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		vars["--sf-body-highlight-bg"] = s.bodyHighlightOverride ? s.bodyHighlightBgColor : null;
 		vars["--sf-body-highlight-color"] = s.bodyHighlightOverrideText ? s.bodyHighlightTextColor : null;
 
+		this.assignEditorFontVars(vars, "--sf-code", s.codeOverrideFont, s.codeFontFamily, s.codeFontWeight);
+		vars["--sf-code-color"] = s.codeOverrideColor ? s.codeColor : null;
+		vars["--sf-code-size"] = s.codeOverrideSize ? `${s.codeSize}em` : null;
+		vars["--sf-code-bg"] = s.codeOverrideBg ? s.codeBgColor : null;
+
+		this.assignEditorFontVars(vars, "--sf-quote", s.blockquoteOverrideFont, s.blockquoteFontFamily, s.blockquoteFontWeight);
+		vars["--sf-quote-color"] = s.blockquoteOverrideColor ? s.blockquoteColor : null;
+		vars["--sf-quote-size"] = s.blockquoteOverrideSize ? `${s.blockquoteSize}em` : null;
+		vars["--sf-quote-bg"] = s.blockquoteOverrideBg ? s.blockquoteBgColor : null;
+		vars["--sf-quote-border"] = s.blockquoteOverrideBorder ? s.blockquoteBorderColor : null;
+
+		vars["--sf-ol-marker"] = s.orderedListOverrideColor ? s.orderedListColor : null;
+		vars["--sf-ul-marker"] = s.unorderedListOverrideColor ? s.unorderedListColor : null;
+
 		// Sizes: storyForge linked settings when present, otherwise formatForge's own.
 		if (this.sfApi) {
 			const linked = this.sfApi.getLinkedSettings();
@@ -267,7 +277,9 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		vars["--sf-h1-variant"] = s.heading1SmallCaps ? "small-caps" : null;
 		vars["--sf-h1-border-top"] = s.heading1DividerAbove ? `${HEADING_DIVIDER_WIDTH_PX[s.heading1DividerAboveThickness]}px solid var(--background-modifier-border)` : null;
 		vars["--sf-h1-border-bottom"] = s.heading1DividerBelow ? `${HEADING_DIVIDER_WIDTH_PX[s.heading1DividerBelowThickness]}px solid var(--background-modifier-border)` : null;
-		vars["--sf-h1-link-color"] = s.hideHeading1Links ? "inherit" : null;
+		// Live Preview co-classes the link on the same span as `.cm-header-1`, so `inherit`
+		// takes the parent line's colour (or a wrapping link colour) rather than H1.
+		vars["--sf-h1-link-color"] = s.hideHeading1Links ? "var(--sf-h1-color, var(--h1-color))" : null;
 		vars["--sf-h1-link-decoration"] = s.hideHeading1Links ? "none" : null;
 
 		// H2–H6
@@ -495,7 +507,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	}
 
 	private clearLocalStyleVars(): void {
-		const prefixes = ["--sf-body", "--sf-h1", "--sf-h2", "--sf-h3", "--sf-h4", "--sf-h5", "--sf-h6"];
+		const prefixes = ["--sf-body", "--sf-code", "--sf-quote", "--sf-ol", "--sf-ul", "--sf-h1", "--sf-h2", "--sf-h3", "--sf-h4", "--sf-h5", "--sf-h6"];
 		const suffixes = [
 			"",
 			"-size",
@@ -513,6 +525,9 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			"-link-decoration",
 			"-highlight-bg",
 			"-highlight-color",
+			"-bg",
+			"-border",
+			"-marker",
 		];
 		for (const doc of this.getLocalStyleDocuments()) {
 			const { style } = doc.body;
@@ -607,6 +622,20 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 					const settingApp = (this.app as unknown as { setting?: { open(): void; openTabById(id: string): void } }).setting;
 					settingApp?.open();
 					settingApp?.openTabById("formatforge");
+				},
+				// Direct-modal entry points storyForge's own settings UI delegates to instead of
+				// openSettings() above, so a host can send the user straight into a real modal rather
+				// than Obsidian's Settings window. "formatting" is Text styling + Formatting themes +
+				// Palette combined; "textStyle"/"themes" are those same two pieces individually.
+				// Interface chrome lives in storyForge's own modal (formatting.openInterfaceModal).
+				openFormattingModal: () => {
+					new FormatForgeSettingsModal(this.app, this).open();
+				},
+				openTextStyleModal: () => {
+					new TextStyleModal(this.app, this, this.getStoryForgeApi()).open();
+				},
+				openThemesModal: () => {
+					new FormattingExportModal(this.app, this).open();
 				},
 				onHostStylesApplied: () => this.applyEditorStyles(),
 				resolveFont: (familyId, weight) => {
@@ -740,9 +769,12 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 			id: "open-ui-formatting-modal",
 			name: "Open storyForge interface styles",
 			callback: () => {
-				void import("./view/UiFormattingModal").then(({ UiFormattingModal }) => {
-					new UiFormattingModal(this.app, this, this.sfApi).open();
-				});
+				const open = this.getStoryForgeApi()?.openInterfaceModal;
+				if (open) {
+					open();
+					return;
+				}
+				new Notice("storyForge is not connected.");
 			},
 		});
 	}

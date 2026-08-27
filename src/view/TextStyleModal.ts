@@ -2,7 +2,7 @@ import { App, Modal, Setting, SettingGroup, ToggleComponent } from "obsidian";
 import type FormatForgePlugin from "../main";
 import { registerCustomFontFaces } from "../fonts";
 import type { FormatForgeSettings } from "../settings";
-import type { SfFormattingApi } from "../storyforgeBridge";
+import type { SfFormattingApi, SfLinkedFormattingKey } from "../storyforgeBridge";
 import {
 	bindColorSwatchButton,
 	renderCustomFontCard,
@@ -16,7 +16,7 @@ import { mountStylePreviewSample } from "./stylePreviewSample";
 const EDITOR_SCROLLBAR_THICKNESS_ORDER = ["thin", "medium", "thick"] as const;
 const EDITOR_SCROLLBAR_THICKNESS_LABELS = ["Thin", "Medium", "Thick"];
 
-type EditorSizeOverrideKey =
+type LinkedSizeOverrideKey =
 	| "bodyTextOverrideSize"
 	| "heading1OverrideSize"
 	| "heading2OverrideSize"
@@ -25,7 +25,7 @@ type EditorSizeOverrideKey =
 	| "heading5OverrideSize"
 	| "heading6OverrideSize";
 
-type EditorSizeKey =
+type LinkedSizeKey =
 	| "bodyTextSize"
 	| "heading1Size"
 	| "heading2Size"
@@ -34,10 +34,38 @@ type EditorSizeKey =
 	| "heading5Size"
 	| "heading6Size";
 
+type LocalSizeOverrideKey = "codeOverrideSize" | "blockquoteOverrideSize";
+
+type LocalSizeKey = "codeSize" | "blockquoteSize";
+
+type EditorSizeOverrideKey = LinkedSizeOverrideKey | LocalSizeOverrideKey;
+type EditorSizeKey = LinkedSizeKey | LocalSizeKey;
+
+const LINKED_SIZE_OVERRIDE_KEYS = new Set<string>([
+	"bodyTextOverrideSize",
+	"heading1OverrideSize",
+	"heading2OverrideSize",
+	"heading3OverrideSize",
+	"heading4OverrideSize",
+	"heading5OverrideSize",
+	"heading6OverrideSize",
+]);
+
+const LINKED_SIZE_KEYS = new Set<string>([
+	"bodyTextSize",
+	"heading1Size",
+	"heading2Size",
+	"heading3Size",
+	"heading4Size",
+	"heading5Size",
+	"heading6Size",
+]);
+
 export class TextStyleModal extends Modal {
 	private plugin: FormatForgePlugin;
 	private sfApi: SfFormattingApi | null;
 	private selectedOtherHeadingLevel: 4 | 5 | 6 = 4;
+	private selectedBodyRegion = "text";
 
 	constructor(app: App, plugin: FormatForgePlugin, sfApi: SfFormattingApi | null) {
 		super(app);
@@ -72,9 +100,10 @@ export class TextStyleModal extends Modal {
 		previewPane.createDiv({ cls: "ff-style-preview-label", text: "Preview" });
 		const preview = previewPane.createDiv({ cls: "ff-style-preview" });
 
-		const cyclingGuideEnabled = () => Boolean(sfApi?.getLinkedSetting("cyclingGuideEnabled"));
+		// Cycling guide is deliberately left out of this preview — storyForge's own settings modal
+		// has its own dedicated cycling-guide preview now, so showing it here too was redundant.
 		const remountPreview = () => {
-			mountStylePreviewSample(preview, { cyclingGuideEnabled: cyclingGuideEnabled() });
+			mountStylePreviewSample(preview);
 			this.plugin.applyEditorScrollbarStyles();
 			void registerCustomFontFaces(document).then(() => this.plugin.applyEditorStyles());
 		};
@@ -85,20 +114,32 @@ export class TextStyleModal extends Modal {
 				id: "body",
 				label: "Body",
 				render: (body) => {
-					this.renderSizeCard(body, "Override theme's default font size", "Font size", "bodyTextOverrideSize", "bodyTextSize", 0.7, 1.8, restyle);
-					this.renderColorOverrideCard(body, settings, "Font colour", "bodyTextOverrideColor", "bodyTextColor", restyle);
-					this.renderFontCard(
+					renderTabbedBody(
 						body,
-						settings,
-						"bodyTextOverrideFont",
-						"bodyTextFontWeight",
-						"bodyTextFontFamily",
-						undefined,
-						this.regionPreviewSizeEm("bodyTextOverrideSize", "bodyTextSize"),
+						[
+							{
+								id: "text",
+								label: "Text",
+								render: (tab) => this.renderBodyTextTab(tab, settings, restyle),
+							},
+							{
+								id: "quote",
+								label: "Quote",
+								render: (tab) => this.renderBodyQuoteTab(tab, settings, restyle),
+							},
+							{
+								id: "links",
+								label: "Links and lists",
+								render: (tab) => this.renderBodyLinksAndListsTab(tab, settings, restyle),
+							},
+						],
+						{
+							initialId: this.selectedBodyRegion,
+							onActivate: (id) => {
+								this.selectedBodyRegion = id;
+							},
+						},
 					);
-					this.renderEmphasisColorOverrideCard(body, settings, restyle);
-					this.renderLinkStyleCard(body, settings, restyle);
-					this.renderHighlightColorOverrideCard(body, settings, restyle);
 				},
 			},
 			{
@@ -114,19 +155,21 @@ export class TextStyleModal extends Modal {
 						1,
 						2.5,
 						restyle,
-						(card) =>
-							card.addSetting((setting) => {
-								setting
-									.setName("Hide Heading 1 Links")
-									.setDesc(
-										"When on, links inside a note's H1 heading render as plain text — no link colour or underline — so the title looks like a normal heading.",
-									)
-									.addToggle((toggle) =>
-										toggle.setValue(settings.hideHeading1Links).onChange((value) => {
-											void this.plugin.updateSetting("hideHeading1Links", value).then(() => restyle());
-										}),
-									);
-							}),
+						{
+							extraRowBefore: (card) =>
+								card.addSetting((setting) => {
+									setting
+										.setName("Hide Heading 1 Links")
+										.setDesc(
+											"When on, links inside a note's H1 heading render as plain text — no link colour or underline — so the title looks like a normal heading.",
+										)
+										.addToggle((toggle) =>
+											toggle.setValue(settings.hideHeading1Links).onChange((value) => {
+												void this.plugin.updateSetting("hideHeading1Links", value).then(() => restyle());
+											}),
+										);
+								}),
+						},
 					);
 					this.renderColorOverrideCard(body, settings, "Header colour", "heading1OverrideColor", "heading1Color", restyle);
 					this.renderFontCard(
@@ -181,56 +224,20 @@ export class TextStyleModal extends Modal {
 				id: "other",
 				label: "H4–6",
 				render: (body) => {
-					const levelGroup = new SettingGroup(body);
-					const levelElements: Record<4 | 5 | 6, HTMLElement[]> = { 4: [], 5: [], 6: [] };
-					const applySelectedLevel = (level: 4 | 5 | 6) => {
-						for (const [key, els] of Object.entries(levelElements)) {
-							const hidden = Number(key) !== level;
-							for (const el of els) el.toggleClass("sf-settings-hidden", hidden);
-						}
-					};
-					levelGroup.addSetting((setting) => {
-						setting.setName("Choose heading level").addDropdown((dropdown) =>
-							dropdown
-								.addOption("4", "Heading 4")
-								.addOption("5", "Heading 5")
-								.addOption("6", "Heading 6")
-								.setValue(String(this.selectedOtherHeadingLevel))
-								.onChange((value) => {
-									this.selectedOtherHeadingLevel = Number(value) as 4 | 5 | 6;
-									applySelectedLevel(this.selectedOtherHeadingLevel);
-								}),
-						);
-					});
-
-					for (const n of [4, 5, 6] as const) {
-						const before = body.children.length;
-						const sizeKey = `heading${n}Size` as EditorSizeKey;
-						const overrideSizeKey = `heading${n}OverrideSize` as EditorSizeOverrideKey;
-						this.renderSizeCard(body, "Override theme's default header size", "Header size", overrideSizeKey, sizeKey, 0.7, 1.8, restyle);
-						this.renderColorOverrideCard(body, settings, "Header colour", `heading${n}OverrideColor`, `heading${n}Color`, restyle);
-						this.renderFontCard(
-							body,
-							settings,
-							`heading${n}OverrideFont`,
-							`heading${n}FontWeight`,
-							`heading${n}FontFamily`,
-							`heading${n}SmallCaps`,
-							this.regionPreviewSizeEm(`heading${n}OverrideSize`, `heading${n}Size`),
-						);
-						this.renderDividerCard(
-							body,
-							settings,
-							`heading${n}DividerAbove`,
-							`heading${n}DividerAboveThickness`,
-							`heading${n}DividerBelow`,
-							`heading${n}DividerBelowThickness`,
-							restyle,
-						);
-						levelElements[n] = Array.from(body.children).slice(before) as HTMLElement[];
-					}
-
-					applySelectedLevel(this.selectedOtherHeadingLevel);
+					renderTabbedBody(
+						body,
+						([4, 5, 6] as const).map((n) => ({
+							id: `h${n}`,
+							label: `H${n}`,
+							render: (levelBody) => this.renderOtherHeadingLevel(levelBody, n, settings, restyle),
+						})),
+						{
+							initialId: `h${this.selectedOtherHeadingLevel}`,
+							onActivate: (id) => {
+								this.selectedOtherHeadingLevel = Number(id.slice(1)) as 4 | 5 | 6;
+							},
+						},
+					);
 				},
 			},
 			{
@@ -238,9 +245,6 @@ export class TextStyleModal extends Modal {
 				label: "Extras",
 				render: (body) => {
 					this.renderEditorScrollbarGroup(body);
-					if (sfApi) {
-						this.renderCyclingGuideCard(body, sfApi, remountPreview);
-					}
 				},
 			},
 		];
@@ -248,102 +252,121 @@ export class TextStyleModal extends Modal {
 		renderTabbedBody(controls, tabs);
 	}
 
-	private renderCyclingGuideCard(
+	private renderBodyTextTab(body: HTMLElement, settings: FormatForgeSettings, restyle: () => void): void {
+		this.renderTypographyCard(body, settings, restyle, {
+			overrideFont: "bodyTextOverrideFont",
+			fontWeight: "bodyTextFontWeight",
+			fontFamily: "bodyTextFontFamily",
+			overrideSize: "bodyTextOverrideSize",
+			size: "bodyTextSize",
+			overrideColor: "bodyTextOverrideColor",
+			color: "bodyTextColor",
+			pickFontName: "Font",
+		});
+		this.renderEmphasisColorOverrideCard(body, settings, restyle);
+		this.renderHighlightColorOverrideCard(body, settings, restyle);
+		this.renderTypographyCard(body, settings, restyle, {
+			overrideFont: "codeOverrideFont",
+			fontWeight: "codeFontWeight",
+			fontFamily: "codeFontFamily",
+			overrideSize: "codeOverrideSize",
+			size: "codeSize",
+			overrideColor: "codeOverrideColor",
+			color: "codeColor",
+			pickFontName: "Code font",
+			themeDefaultPreviewFamily: "var(--font-monospace)",
+			extraColors: [{ label: "Background", overrideKey: "codeOverrideBg", colorKey: "codeBgColor" }],
+		});
+	}
+
+	private renderBodyQuoteTab(body: HTMLElement, settings: FormatForgeSettings, restyle: () => void): void {
+		this.renderTypographyCard(body, settings, restyle, {
+			overrideFont: "blockquoteOverrideFont",
+			fontWeight: "blockquoteFontWeight",
+			fontFamily: "blockquoteFontFamily",
+			overrideSize: "blockquoteOverrideSize",
+			size: "blockquoteSize",
+			overrideColor: "blockquoteOverrideColor",
+			color: "blockquoteColor",
+			pickFontName: "Font",
+			extraColors: [
+				{ label: "Background", overrideKey: "blockquoteOverrideBg", colorKey: "blockquoteBgColor" },
+				{ label: "Side indicator", overrideKey: "blockquoteOverrideBorder", colorKey: "blockquoteBorderColor" },
+			],
+		});
+	}
+
+	private renderBodyLinksAndListsTab(body: HTMLElement, settings: FormatForgeSettings, restyle: () => void): void {
+		this.renderLinkStyleCard(body, settings, restyle);
+		const markers = new SettingGroup(body);
+		this.renderColorOverrideCard(
+			body,
+			settings,
+			"Ordered list marker",
+			"orderedListOverrideColor",
+			"orderedListColor",
+			restyle,
+			markers,
+		);
+		this.renderColorOverrideCard(
+			body,
+			settings,
+			"Unordered list marker",
+			"unorderedListOverrideColor",
+			"unorderedListColor",
+			restyle,
+			markers,
+		);
+	}
+
+	private renderTypographyCard(
 		body: HTMLElement,
-		sfApi: SfFormattingApi,
-		onEnabledChange: () => void,
-	): void {
-		const s = sfApi.getLinkedSettings() as Record<string, unknown>;
-		const cyclingGuideGroup = new SettingGroup(body);
-
-		let cyclingGuideToggle!: ToggleComponent;
-		cyclingGuideGroup.addSetting((setting) => {
-			setting
-				.setName("Cycling guide")
-				.setDesc("Draws a floating guideline in the editor.")
-				.addToggle((toggle) => {
-					cyclingGuideToggle = toggle;
-					toggle.setValue(s.cyclingGuideEnabled as boolean);
-				});
-		});
-
-		let cyclingGuideThicknessSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideThicknessSetting = setting;
-			setting.setName("Thickness").addDropdown((dropdown) =>
-				dropdown
-					.addOption("thin", "Thin")
-					.addOption("medium", "Medium")
-					.addOption("thick", "Thick")
-					.addOption("extra-thick", "Extra thick")
-					.setValue(s.cyclingGuideThickness as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideThickness", value)),
-			);
-		});
-
-		let cyclingGuideFlagSizeSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideFlagSizeSetting = setting;
-			setting.setName("Flag size").addDropdown((dropdown) =>
-				dropdown
-					.addOption("small", "Small")
-					.addOption("medium", "Medium")
-					.addOption("large", "Large")
-					.setValue(s.cyclingGuideFlagSize as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideFlagSize", value)),
-			);
-		});
-
-		let cyclingGuideRoundedLinesSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideRoundedLinesSetting = setting;
-			setting
-				.setName("Rounded lines")
-				.setDesc("Rounds the corners of the divider line, except the bottom-right where the flag sits.")
-				.addToggle((toggle) =>
-					toggle
-						.setValue(s.cyclingGuideRoundedLines as boolean)
-						.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideRoundedLines", value)),
-				);
-		});
-
-		let cyclingGuideIntervalSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideIntervalSetting = setting;
-			setting.setName("Cycle length").addDropdown((dropdown) =>
-				dropdown
-					.addOption("short", "Short")
-					.addOption("medium", "Medium")
-					.addOption("large", "Long")
-					.setValue(s.cyclingGuideInterval as string)
-					.onChange((value) => void sfApi.updateLinkedSetting("cyclingGuideInterval", value)),
-			);
-		});
-
-		let cyclingGuideColorSetting!: Setting;
-		cyclingGuideGroup.addSetting((setting) => {
-			cyclingGuideColorSetting = setting;
-			setting.setName("Line colour").addButton((button) =>
-				bindColorSwatchButton(this.app, () => this.plugin.getPalette(), button.buttonEl, s.cyclingGuideColor as string, (hex) => {
-					void sfApi.updateLinkedSetting("cyclingGuideColor", hex);
-				}),
-			);
-		});
-
-		const applyCyclingGuideVisibility = (hidden: boolean) => {
-			cyclingGuideThicknessSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			cyclingGuideFlagSizeSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			cyclingGuideRoundedLinesSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			cyclingGuideIntervalSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-			cyclingGuideColorSetting.settingEl.toggleClass("sf-settings-hidden", hidden);
-		};
-		cyclingGuideToggle.onChange((value) => {
-			void sfApi.updateLinkedSetting("cyclingGuideEnabled", value).then(() => {
-				applyCyclingGuideVisibility(!value);
-				onEnabledChange();
-			});
-		});
-		applyCyclingGuideVisibility(!(s.cyclingGuideEnabled as boolean));
+		settings: FormatForgeSettings,
+		restyle: () => void,
+		keys: {
+			overrideFont: keyof FormatForgeSettings;
+			fontWeight: keyof FormatForgeSettings;
+			fontFamily: keyof FormatForgeSettings;
+			overrideSize: EditorSizeOverrideKey;
+			size: EditorSizeKey;
+			overrideColor: keyof FormatForgeSettings;
+			color: keyof FormatForgeSettings;
+			pickFontName?: string;
+			themeDefaultPreviewFamily?: string;
+			extraColors?: Array<{
+				label: string;
+				overrideKey: keyof FormatForgeSettings;
+				colorKey: keyof FormatForgeSettings;
+			}>;
+		},
+	): SettingGroup {
+		const fontCard = this.renderFontCard(
+			body,
+			settings,
+			keys.overrideFont,
+			keys.fontWeight,
+			keys.fontFamily,
+			undefined,
+			this.regionPreviewSizeEm(keys.overrideSize, keys.size),
+			keys.pickFontName,
+			keys.themeDefaultPreviewFamily,
+		);
+		this.renderSizeCard(
+			body,
+			"Override theme's default font size",
+			"Font size",
+			keys.overrideSize,
+			keys.size,
+			0.7,
+			1.8,
+			restyle,
+			{ group: fontCard },
+		);
+		this.renderColorOverrideCard(body, settings, "Font colour", keys.overrideColor, keys.color, restyle, fontCard);
+		for (const extra of keys.extraColors ?? []) {
+			this.renderColorOverrideCard(body, settings, extra.label, extra.overrideKey, extra.colorKey, restyle, fontCard);
+		}
+		return fontCard;
 	}
 
 	private renderEditorScrollbarGroup(body: HTMLElement): void {
@@ -387,6 +410,36 @@ export class TextStyleModal extends Modal {
 		});
 	}
 
+	private renderOtherHeadingLevel(
+		body: HTMLElement,
+		n: 4 | 5 | 6,
+		settings: FormatForgeSettings,
+		restyle: () => void,
+	): void {
+		const sizeKey = `heading${n}Size` as EditorSizeKey;
+		const overrideSizeKey = `heading${n}OverrideSize` as EditorSizeOverrideKey;
+		this.renderSizeCard(body, "Override theme's default header size", "Header size", overrideSizeKey, sizeKey, 0.7, 1.8, restyle);
+		this.renderColorOverrideCard(body, settings, "Header colour", `heading${n}OverrideColor`, `heading${n}Color`, restyle);
+		this.renderFontCard(
+			body,
+			settings,
+			`heading${n}OverrideFont`,
+			`heading${n}FontWeight`,
+			`heading${n}FontFamily`,
+			`heading${n}SmallCaps`,
+			this.regionPreviewSizeEm(`heading${n}OverrideSize`, `heading${n}Size`),
+		);
+		this.renderDividerCard(
+			body,
+			settings,
+			`heading${n}DividerAbove`,
+			`heading${n}DividerAboveThickness`,
+			`heading${n}DividerBelow`,
+			`heading${n}DividerBelowThickness`,
+			restyle,
+		);
+	}
+
 	/**
 	 * Size cards write to storyForge linked settings when that host is available,
 	 * otherwise to formatForge's own settings.
@@ -400,14 +453,15 @@ export class TextStyleModal extends Modal {
 		min: number,
 		max: number,
 		restyle: () => void,
-		extraRowBefore?: (card: SettingGroup) => void,
+		opts?: { extraRowBefore?: (card: SettingGroup) => void; group?: SettingGroup },
 	): void {
 		const settings = this.plugin.getTypedSettings();
-		const initialOverride = this.sfApi
-			? ((this.sfApi.getLinkedSetting(overrideKey) as boolean) ?? false)
+		const useLinked = !!(this.sfApi && LINKED_SIZE_OVERRIDE_KEYS.has(overrideKey));
+		const initialOverride = useLinked
+			? ((this.sfApi!.getLinkedSetting(overrideKey as SfLinkedFormattingKey) as boolean) ?? false)
 			: settings[overrideKey];
-		const initialSize = this.sfApi
-			? ((this.sfApi.getLinkedSetting(sizeKey) as number) ?? 1)
+		const initialSize = useLinked
+			? ((this.sfApi!.getLinkedSetting(sizeKey as SfLinkedFormattingKey) as number) ?? 1)
 			: settings[sizeKey];
 
 		renderToggleWithRevealCard(
@@ -433,13 +487,17 @@ export class TextStyleModal extends Modal {
 				return sliderSetting;
 			},
 			restyle,
-			extraRowBefore,
+			opts?.extraRowBefore,
+			opts?.group,
 		);
 	}
 
-	/** Sizes live on both sides, so route through the host-owned writer to keep the local mirror current. */
+	/** Linked sizes write through the host; code/quote sizes stay formatForge-local. */
 	private writeSizeSetting(key: EditorSizeOverrideKey | EditorSizeKey, value: boolean | number): Promise<void> {
-		return this.plugin.updateHostOwnedSetting(key, value);
+		if (this.sfApi && (LINKED_SIZE_OVERRIDE_KEYS.has(key) || LINKED_SIZE_KEYS.has(key))) {
+			return this.plugin.updateHostOwnedSetting(key, value);
+		}
+		return this.plugin.updateSetting(key, value);
 	}
 
 	/**
@@ -480,8 +538,9 @@ export class TextStyleModal extends Modal {
 		overrideKey: keyof FormatForgeSettings,
 		colorKey: keyof FormatForgeSettings,
 		restyle: () => void,
+		group?: SettingGroup,
 	): void {
-		const card = new SettingGroup(body);
+		const card = group ?? new SettingGroup(body);
 		card.addSetting((setting) => {
 			setting.setName(swatchLabel).addButton((button) =>
 				this.bindOverridableColorSwatch(button.buttonEl, settings, overrideKey, colorKey, restyle),
@@ -554,8 +613,10 @@ export class TextStyleModal extends Modal {
 		fontFamilyKey: keyof FormatForgeSettings,
 		smallCapsKey?: keyof FormatForgeSettings,
 		previewFontSizeEm?: number | (() => number),
-	): void {
-		renderCustomFontCard({
+		pickFontName?: string,
+		themeDefaultPreviewFamily?: string,
+	): SettingGroup {
+		return renderCustomFontCard({
 			app: this.app,
 			host: this.plugin,
 			body,
@@ -565,6 +626,8 @@ export class TextStyleModal extends Modal {
 			fontFamilyKey,
 			smallCapsKey,
 			previewFontSizeEm,
+			pickFontName,
+			themeDefaultPreviewFamily: themeDefaultPreviewFamily ?? "var(--font-text)",
 			restyle: () => this.plugin.applyEditorStyles(),
 		});
 	}
@@ -572,9 +635,10 @@ export class TextStyleModal extends Modal {
 	/** Region preview size: the overridden slider value when size override is on, else 1em. */
 	private regionPreviewSizeEm(overrideSizeKey: EditorSizeOverrideKey, sizeKey: EditorSizeKey): () => number {
 		return () => {
-			if (this.sfApi) {
-				const linked = this.sfApi.getLinkedSettings();
-				return linked[overrideSizeKey] ? Number(linked[sizeKey]) || 1 : 1;
+			if (this.sfApi && LINKED_SIZE_OVERRIDE_KEYS.has(overrideSizeKey)) {
+				const override = this.sfApi.getLinkedSetting(overrideSizeKey as SfLinkedFormattingKey);
+				const size = this.sfApi.getLinkedSetting(sizeKey as SfLinkedFormattingKey);
+				return override ? Number(size) || 1 : 1;
 			}
 			const settings = this.plugin.getTypedSettings();
 			return settings[overrideSizeKey] ? settings[sizeKey] || 1 : 1;

@@ -8,7 +8,6 @@ import {
 } from "../colorPalettes";
 import { FormattingExportModal } from "./FormattingExportModal";
 import { TextStyleModal } from "./TextStyleModal";
-import { UiFormattingModal } from "./UiFormattingModal";
 
 function isPresetPaletteName(name: string): name is PresetPaletteName {
 	return name in COLOR_PALETTES;
@@ -104,10 +103,10 @@ export class FormatForgeSettingsTab extends PluginSettingTab {
 					},
 					{
 						name: "storyForge interface",
-						desc: "Panel chrome for storyForge library, unplaced, codex, and cycling guide.",
+						desc: "Opens storyForge's interface modal. Font pickers appear there while formatForge is connected.",
 						visible: () => !!this.plugin.getStoryForgeApi(),
 						action: () => {
-							new UiFormattingModal(this.app, this.plugin, this.plugin.getStoryForgeApi()).open();
+							this.plugin.getStoryForgeApi()?.openInterfaceModal?.();
 						},
 					},
 					{

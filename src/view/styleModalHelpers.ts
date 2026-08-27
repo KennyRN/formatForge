@@ -1,8 +1,10 @@
 import { App, DropdownComponent, Setting, SettingGroup, ToggleComponent } from "obsidian";
 import { CUSTOM_FONTS } from "../fonts";
+import type { PaletteName } from "../colorPalettes";
 import type { SfPaletteColor } from "../storyforgeBridge";
 
-/** Shared building blocks for TextStyleModal, UiFormattingModal — free functions
+/** Shared building blocks for TextStyleModal — free functions
+ * rather than a base class, matching the codebase's existing preference,
  * that accept minimal host interfaces rather than the full plugin class. */
 
 export const FONT_WEIGHT_OPTIONS: [string, string][] = [
@@ -45,6 +47,13 @@ export interface ColorSwatchThemeDefaultOption {
 	onSelect: () => void | Promise<void>;
 }
 
+/** A swatch button/picker with this wired in gets a "Muted" choice above the palette colours. */
+export interface ColorSwatchMutedOption {
+	isActive: boolean;
+	onSelect: () => void | Promise<void>;
+	onClear: () => void | Promise<void>;
+}
+
 export function applyColorPick(hex: string, paint: (hex: string | null) => void, onPick: (hex: string) => void): void {
 	paint(hex);
 	onPick(hex);
@@ -56,20 +65,32 @@ export function openColorSwatchPicker(
 	paint: (hex: string | null) => void,
 	onPick: (hex: string) => void,
 	themeDefault?: ColorSwatchThemeDefaultOption,
+	muted?: ColorSwatchMutedOption,
 ): void {
 	const p = getPalette();
-	void import("./PalettePickerModal").then(({ PalettePickerModal }) => {
+	void import("./PalettePickerModal").then(({ PalettePickerModal, resolveThemeMutedColor }) => {
 		new PalettePickerModal(
 			app,
-			p.name,
+			p.name as PaletteName,
 			p.variant,
 			p.customColors,
-			(hex) => applyColorPick(hex, paint, onPick),
+			(hex) => {
+				void Promise.resolve(muted?.isActive ? muted.onClear() : undefined).then(() => {
+					applyColorPick(hex, paint, onPick);
+				});
+			},
 			themeDefault && {
 				isActive: themeDefault.isActive,
 				onSelect: () => {
 					paint(null);
 					return themeDefault.onSelect();
+				},
+			},
+			muted && {
+				isActive: muted.isActive,
+				onSelect: () => {
+					paint(resolveThemeMutedColor());
+					return muted.onSelect();
 				},
 			},
 		).open();
@@ -78,9 +99,9 @@ export function openColorSwatchPicker(
 
 /**
  * Binds a colour swatch button to open the palette picker on click. When `themeDefault` is
- * passed, the picker's list gets a "Theme default" entry after every real colour (replacing
- * the old separate "Override theme's default …" toggle), and the button itself paints a
- * dashed placeholder instead of a hex while that option is active.
+ * passed, the picker's list gets a "Theme default" entry after every real colour. When `muted`
+ * is passed, the picker's list gets a "Muted" entry above the palette colours (replacing a
+ * separate muted toggle), and the button paints the live muted colour while that option is active.
  */
 export function bindColorSwatchButton(
 	app: App,
@@ -89,6 +110,7 @@ export function bindColorSwatchButton(
 	initialHex: string,
 	onPick: (hex: string) => void,
 	themeDefault?: ColorSwatchThemeDefaultOption,
+	muted?: ColorSwatchMutedOption,
 ): void {
 	buttonEl.addClass("sf-color-swatch-btn");
 	buttonEl.setAttr("aria-label", "Choose colour");
@@ -96,8 +118,14 @@ export function bindColorSwatchButton(
 		buttonEl.toggleClass("sf-color-swatch-btn--theme-default", hex === null);
 		buttonEl.setCssStyles({ backgroundColor: hex ?? "" });
 	};
-	paint(themeDefault?.isActive ? null : initialHex);
-	buttonEl.addEventListener("click", () => openColorSwatchPicker(app, getPalette, paint, onPick, themeDefault));
+	if (muted?.isActive) {
+		void import("./PalettePickerModal").then(({ resolveThemeMutedColor }) => {
+			paint(resolveThemeMutedColor());
+		});
+	} else {
+		paint(themeDefault?.isActive ? null : initialHex);
+	}
+	buttonEl.addEventListener("click", () => openColorSwatchPicker(app, getPalette, paint, onPick, themeDefault, muted));
 }
 
 export function applyFontWeightChange<W extends string>(
@@ -178,6 +206,10 @@ export interface RenderCustomFontCardOptions {
 	 * May be a getter so the modal reads the latest slider value on open.
 	 */
 	previewFontSizeEm?: number | (() => number);
+	/** Label for the pick-font row. Defaults to "Pick font". */
+	pickFontName?: string;
+	/** CSS font-family used to preview the Theme default row. */
+	themeDefaultPreviewFamily?: string;
 	/** Append into this group; otherwise a new SettingGroup is created on `body`. */
 	group?: SettingGroup;
 	body?: HTMLElement;
@@ -190,9 +222,9 @@ function resolvePreviewFontSizeEm(value: number | (() => number) | undefined): n
 
 /**
  * Pick font (with a "Theme default" entry at the bottom of its own list, replacing the old
- * separate "Override theme's default font" toggle) + Font weight (+ optional Small caps),
- * shared by Text Style and UI Formatting. Weight/small caps stay hidden while at theme
- * default, same as before — only the on/off control moved into the font picker itself.
+ * separate "Override theme's default font" toggle) and Font weight on the same row. When
+ * `smallCapsKey` is set, Small caps lives inside the font picker and the catalogue samples
+ * follow the toggle. Weight stays hidden while at theme default.
  */
 export function renderCustomFontCard(opts: RenderCustomFontCardOptions): SettingGroup {
 	const {
@@ -205,6 +237,8 @@ export function renderCustomFontCard(opts: RenderCustomFontCardOptions): Setting
 		smallCapsKey,
 		restyle,
 		previewFontSizeEm,
+		pickFontName,
+		themeDefaultPreviewFamily,
 	} = opts;
 	const card = opts.group ?? new SettingGroup(opts.body!);
 
@@ -212,14 +246,16 @@ export function renderCustomFontCard(opts: RenderCustomFontCardOptions): Setting
 	let selectedFontFamily: string = settings[fontFamilyKey] as string;
 
 	let pickFontButtonEl: HTMLElement | null = null;
+	const smallCapsOn = (): boolean => !!(smallCapsKey && host.getSettings()[smallCapsKey]);
 	const syncPickFontButtonLabel = () => {
 		if (!pickFontButtonEl) return;
 		if (!isOverriding) {
 			pickFontButtonEl.setText("Theme default");
-			return;
+		} else {
+			const font = CUSTOM_FONTS.find((f) => f.id === selectedFontFamily);
+			pickFontButtonEl.setText(font?.label ?? "Pick font");
 		}
-		const font = CUSTOM_FONTS.find((f) => f.id === selectedFontFamily);
-		pickFontButtonEl.setText(font?.label ?? "Pick font");
+		pickFontButtonEl.toggleClass("sf-small-caps-label", smallCapsOn());
 	};
 	const applySelectedFont = async (value: string) => {
 		isOverriding = true;
@@ -242,27 +278,6 @@ export function renderCustomFontCard(opts: RenderCustomFontCardOptions): Setting
 		applyVisibility();
 		restyle();
 	};
-	card.addSetting((setting) => {
-		setting.setName("Pick font");
-		setting.addButton((button) => {
-			pickFontButtonEl = button.buttonEl;
-			button.setCta();
-			syncPickFontButtonLabel();
-			button.onClick(() => {
-				void import("./FontPickerModal").then(({ FontPickerModal }) => {
-					new FontPickerModal(
-						app,
-						selectedFontFamily,
-						resolvePreviewFontSizeEm(previewFontSizeEm),
-						(id) => applySelectedFont(id),
-						{ isActive: !isOverriding, onSelect: () => applyThemeDefault() },
-					).open();
-				});
-			});
-		});
-	});
-
-	let fontWeightSetting!: Setting;
 	let weightDropdown!: DropdownComponent;
 	const weightOptionsForSelected = (): [string, string][] => {
 		const font = CUSTOM_FONTS.find((f) => f.id === selectedFontFamily);
@@ -278,40 +293,57 @@ export function renderCustomFontCard(opts: RenderCustomFontCardOptions): Setting
 		fillFontWeightOptions(weightDropdown, clamped, options);
 		return clamped;
 	};
-	card.addSetting((setting) => {
-		fontWeightSetting = setting;
-		setting.setName("Font weight");
-		setting.addDropdown((dropdown) => {
-			weightDropdown = dropdown;
-			const options = weightOptionsForSelected();
-			const initial = clampFontWeightToOptions(settings[fontWeightKey] as string, options);
-			populateFontWeightDropdown(dropdown, initial, onWeightChange, options);
-		});
-	});
-
-	let smallCapsSetting: Setting | undefined;
-	if (smallCapsKey) {
-		card.addSetting((setting) => {
-			smallCapsSetting = setting;
-			setting.setName("Small caps").addToggle((toggle) =>
-				toggle.setValue(settings[smallCapsKey] as boolean).onChange((value) => {
-					void host.updateSetting(smallCapsKey, value).then(() => restyle());
-				}),
-			);
-			setting.nameEl.addClass("sf-small-caps-label");
-		});
-	}
-
 	const isSelectedFontVariable = (): boolean => {
 		const font = CUSTOM_FONTS.find((f) => f.id === selectedFontFamily);
 		return font ? font.weightMin !== font.weightMax : true;
 	};
 	const applyVisibility = () => {
 		const overrideOff = !isOverriding;
-		smallCapsSetting?.settingEl.toggleClass("sf-settings-hidden", overrideOff);
-		fontWeightSetting.settingEl.toggleClass("sf-settings-hidden", overrideOff || !isSelectedFontVariable());
+		weightDropdown.selectEl.toggleClass("sf-settings-hidden", overrideOff || !isSelectedFontVariable());
 		if (!overrideOff && isSelectedFontVariable()) syncWeightDropdown();
 	};
+	card.addSetting((setting) => {
+		setting.settingEl.addClass("sf-font-row");
+		setting.setName(pickFontName ?? "Pick font");
+		setting.addButton((button) => {
+			pickFontButtonEl = button.buttonEl;
+			button.setCta();
+			syncPickFontButtonLabel();
+			button.onClick(() => {
+				void import("./FontPickerModal").then(({ FontPickerModal }) => {
+					new FontPickerModal(
+						app,
+						selectedFontFamily,
+						resolvePreviewFontSizeEm(previewFontSizeEm),
+						(id) => applySelectedFont(id),
+						{
+							isActive: !isOverriding,
+							onSelect: () => applyThemeDefault(),
+							previewFamily: themeDefaultPreviewFamily ?? "var(--font-interface)",
+						},
+						smallCapsKey
+							? {
+									enabled: smallCapsOn(),
+									onChange: async (enabled) => {
+										await host.updateSetting(smallCapsKey, enabled);
+										syncPickFontButtonLabel();
+										restyle();
+									},
+								}
+							: undefined,
+					).open();
+				});
+			});
+		});
+		setting.addDropdown((dropdown) => {
+			weightDropdown = dropdown;
+			dropdown.selectEl.addClass("sf-font-weight-dropdown");
+			dropdown.selectEl.setAttr("aria-label", "Font weight");
+			const options = weightOptionsForSelected();
+			const initial = clampFontWeightToOptions(settings[fontWeightKey] as string, options);
+			populateFontWeightDropdown(dropdown, initial, onWeightChange, options);
+		});
+	});
 	applyVisibility();
 	return card;
 }
@@ -364,8 +396,9 @@ export function renderToggleWithRevealCard(
 	buildRevealRow: (card: SettingGroup) => Setting,
 	restyle: () => void,
 	extraRowBefore?: (card: SettingGroup) => void,
+	group?: SettingGroup,
 ): { toggle: ToggleComponent; card: SettingGroup } {
-	const card = new SettingGroup(body);
+	const card = group ?? new SettingGroup(body);
 	if (extraRowBefore) extraRowBefore(card);
 	let toggle!: ToggleComponent;
 	card.addSetting((setting) => {
@@ -385,17 +418,18 @@ export interface StyleModalTab {
 	render: (body: HTMLElement) => void;
 }
 
-/** Builds the tab bar + body-visibility wiring shared by TextStyleModal and UiFormattingModal. */
+/** Builds the tab bar + body-visibility wiring used by TextStyleModal. */
 export function renderTabbedBody(
 	contentEl: HTMLElement,
 	tabs: StyleModalTab[],
-	options?: { onActivate?: (id: string) => void },
+	options?: { onActivate?: (id: string) => void; initialId?: string },
 ): void {
 	const tabBar = contentEl.createDiv({ cls: "sf-text-style-tab-bar" });
 	const tabBodyWrapper = contentEl.createDiv({ cls: "sf-text-style-tab-body-wrapper" });
 
 	const tabBodies: HTMLElement[] = [];
-	let activeTabId = tabs[0].id;
+	const initialId = options?.initialId;
+	let activeTabId = initialId && tabs.some((tab) => tab.id === initialId) ? initialId : tabs[0].id;
 
 	const activate = (id: string) => {
 		activeTabId = id;

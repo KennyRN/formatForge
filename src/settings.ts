@@ -65,6 +65,36 @@ export interface FormatForgeSettings {
 	bodyHighlightOverrideText: boolean;
 	bodyHighlightTextColor: string;
 
+	// ── Body: code ─────────────────────────────────────────────────
+	codeOverrideSize: boolean;
+	codeSize: number;
+	codeOverrideColor: boolean;
+	codeColor: string;
+	codeOverrideFont: boolean;
+	codeFontFamily: string;
+	codeFontWeight: FontWeight;
+	codeOverrideBg: boolean;
+	codeBgColor: string;
+
+	// ── Body: block quote ──────────────────────────────────────────
+	blockquoteOverrideSize: boolean;
+	blockquoteSize: number;
+	blockquoteOverrideColor: boolean;
+	blockquoteColor: string;
+	blockquoteOverrideFont: boolean;
+	blockquoteFontFamily: string;
+	blockquoteFontWeight: FontWeight;
+	blockquoteOverrideBg: boolean;
+	blockquoteBgColor: string;
+	blockquoteOverrideBorder: boolean;
+	blockquoteBorderColor: string;
+
+	// ── Body: list markers ─────────────────────────────────────────
+	orderedListOverrideColor: boolean;
+	orderedListColor: string;
+	unorderedListOverrideColor: boolean;
+	unorderedListColor: string;
+
 	// ── Heading 1 ──────────────────────────────────────────────────
 	hideHeading1Links: boolean;
 	heading1OverrideSize: boolean;
@@ -182,6 +212,36 @@ export const DEFAULT_SETTINGS: FormatForgeSettings = {
 	bodyHighlightBgColor: "#e0af68",
 	bodyHighlightOverrideText: false,
 	bodyHighlightTextColor: "#1a1a1a",
+
+	// Code
+	codeOverrideSize: false,
+	codeSize: 1,
+	codeOverrideColor: false,
+	codeColor: "#d4d4d4",
+	codeOverrideFont: false,
+	codeFontFamily: "courier-prime",
+	codeFontWeight: "400",
+	codeOverrideBg: false,
+	codeBgColor: "#2a2a2a",
+
+	// Block quote
+	blockquoteOverrideSize: false,
+	blockquoteSize: 1,
+	blockquoteOverrideColor: false,
+	blockquoteColor: "#d4d4d4",
+	blockquoteOverrideFont: false,
+	blockquoteFontFamily: "ibm-plex-sans-var",
+	blockquoteFontWeight: "400",
+	blockquoteOverrideBg: false,
+	blockquoteBgColor: "#2a2a2a",
+	blockquoteOverrideBorder: false,
+	blockquoteBorderColor: "#7eb8da",
+
+	// List markers
+	orderedListOverrideColor: false,
+	orderedListColor: "#7eb8da",
+	unorderedListOverrideColor: false,
+	unorderedListColor: "#7eb8da",
 
 	// H1
 	hideHeading1Links: false,

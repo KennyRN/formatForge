@@ -22,6 +22,7 @@ Capabilities added after v2 are feature-detected by method presence:
 | v6 | Save/list/read named formatting presets |
 | v7 | Rename/delete presets and explicit overwrite |
 | v8 | Validated batched linked updates |
+| — | `openInterfaceModal()` opens storyForge's own interface chrome modal (feature-detected) |
 
 ## Shared linked-key contract
 
@@ -116,6 +117,7 @@ formatting.getStyleDocuments();      // documents requiring FontFace registratio
 | storyForge | Palette, panel chrome, highlights, sizes, guides and scrollbar |
 | formatForge | Editor colours, fonts, small caps, dividers and H1 link styling |
 
-When formatForge is enabled, storyForge intentionally removes its formatting
-transfer UI and points users to formatForge. Standalone storyForge keeps its
-fallback Themes UI when formatForge is absent.
+When formatForge is enabled, storyForge's interface modal stays in storyForge
+and gains font pickers from the companion. Editor colours, fonts, and themes
+stay in formatForge. Standalone storyForge keeps its fallback Themes UI when
+formatForge is absent.

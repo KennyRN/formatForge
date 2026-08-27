@@ -197,6 +197,11 @@
 	display: none;
 }
 
+.sf-font-row .setting-item-control {
+	flex-wrap: nowrap;
+	gap: 8px;
+}
+
 /* ── Settings tab spacing ──────────────────────────────────────────────── */
 
 .sf-settings-tab > .setting-item + .setting-group,
@@ -258,6 +263,22 @@
 }
 
 .sf-palette-row.sf-palette-theme-default.is-selected {
+	background: var(--background-modifier-hover);
+}
+
+/* Always the first extra row — a small but distinct gap above the real palette colours. */
+.sf-palette-row.sf-palette-muted {
+	margin-bottom: 8px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-palette-row.sf-palette-muted .sf-palette-name {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.sf-palette-row.sf-palette-muted.is-selected {
 	background: var(--background-modifier-hover);
 }
 
@@ -452,7 +473,9 @@
 .modal.sf-text-style-modal .ff-style-preview strong:not(#formatforge-specificity-boost) {
 	color: var(--sf-body-bold-color, inherit);
 	font-family: inherit;
-	font-variation-settings: inherit;
+	font-weight: bold;
+	/* Parent pins "wght" for variable fonts; inheriting it cancels UA bold. */
+	font-variation-settings: normal;
 }
 .modal.sf-text-style-modal .ff-style-preview em:not(#formatforge-specificity-boost) {
 	color: var(--sf-body-italic-color, inherit);
@@ -466,6 +489,14 @@
 .modal.sf-text-style-modal .ff-style-preview a:hover:not(#formatforge-specificity-boost) {
 	color: var(--sf-body-link-color-hover, var(--link-color-hover));
 	text-decoration: var(--sf-body-link-decoration, var(--link-decoration-hover));
+}
+.modal.sf-text-style-modal .ff-style-preview h1 a:not(#formatforge-specificity-boost) {
+	color: var(--sf-h1-link-color, var(--link-color));
+	text-decoration: var(--sf-h1-link-decoration, var(--link-decoration));
+}
+.modal.sf-text-style-modal .ff-style-preview h1 a:hover:not(#formatforge-specificity-boost) {
+	color: var(--sf-h1-link-color, var(--link-color-hover));
+	text-decoration: var(--sf-h1-link-decoration, var(--link-decoration-hover));
 }
 .modal.sf-text-style-modal .ff-style-preview mark:not(#formatforge-specificity-boost) {
 	background-color: var(--sf-body-highlight-bg, var(--text-highlight-bg));
@@ -533,6 +564,54 @@
 	font-variant: var(--sf-h6-variant, normal);
 }
 
+.modal.sf-text-style-modal .ff-style-preview :is(code, pre) {
+	font-size: var(--sf-code-size, inherit);
+	color: var(--sf-code-color, inherit);
+	font-weight: var(--sf-code-weight, inherit);
+	font-family: var(--sf-code-family, var(--font-monospace));
+	font-variation-settings: var(--sf-code-variation, normal);
+	background-color: var(--sf-code-bg, transparent);
+}
+
+.modal.sf-text-style-modal .ff-style-preview pre {
+	padding: 0.45em 0.7em;
+	border-radius: 4px;
+}
+
+.modal.sf-text-style-modal .ff-style-preview pre code {
+	background-color: transparent;
+}
+
+.modal.sf-text-style-modal .ff-style-preview blockquote {
+	font-size: var(--sf-quote-size, var(--sf-body-size, inherit));
+	color: var(--sf-quote-color, var(--sf-body-color, var(--text-normal)));
+	font-weight: var(--sf-quote-weight, var(--sf-body-weight, inherit));
+	font-family: var(--sf-quote-family, var(--sf-body-family, inherit));
+	font-variation-settings: var(--sf-quote-variation, var(--sf-body-variation, normal));
+	background-color: var(--sf-quote-bg, transparent);
+	margin-inline: 0;
+	padding: 0.4em 0.8em;
+	border-inline-start: 3px solid var(--sf-quote-border, var(--blockquote-border-color, var(--background-modifier-border)));
+}
+
+.modal.sf-text-style-modal .ff-style-preview ol {
+	margin-block: 0 0.85em;
+	padding-inline-start: 1.5em;
+}
+
+.modal.sf-text-style-modal .ff-style-preview ul {
+	margin-block: 0 0.85em;
+	padding-inline-start: 1.5em;
+}
+
+.modal.sf-text-style-modal .ff-style-preview ol > li::marker {
+	color: var(--sf-ol-marker, revert);
+}
+
+.modal.sf-text-style-modal .ff-style-preview ul > li::marker {
+	color: var(--sf-ul-marker, revert);
+}
+
 @media (max-width: 900px) {
 	.ff-text-style-layout {
 		flex-direction: column;
@@ -578,6 +657,15 @@
 	user-select: none;
 }
 
+.ff-ui-style-preview .ff-ui-preview-host.storyforge-storytelling-view {
+	display: grid;
+	grid-template-rows: auto 1fr auto;
+	height: 100%;
+	min-height: 100%;
+	pointer-events: none;
+	user-select: none;
+}
+
 .ff-ui-style-preview .sf-right-rail-preview {
 	display: flex;
 	flex-direction: column;
@@ -604,6 +692,85 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
 	padding: 10px;
+	min-height: 180px;
+	display: flex;
+	flex-direction: column;
+}
+
+.ff-ui-style-preview .sf-right-rail-preview-caption {
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	margin-bottom: -8px;
+}
+
+.ff-ui-style-preview .sf-right-rail-preview--stacked .sf-recommend-view {
+	min-height: 140px;
+}
+
+.ff-ui-style-preview .sf-recommend-tabs {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+
+.ff-ui-style-preview .sf-recommend-tab {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: calc(var(--font-ui-medium) * 1.4);
+	color: var(--sf-recommend-tabs-color, var(--text-muted));
+	padding: 5px 6px;
+}
+
+.ff-ui-style-preview .sf-recommend-tab svg {
+	width: 1em;
+	height: 1em;
+}
+
+.ff-ui-style-preview .sf-recommend-tab:hover,
+.ff-ui-style-preview .sf-recommend-tab.is-active {
+	color: var(--sf-recommend-tabs-active-color, var(--text-accent));
+}
+
+.ff-ui-style-preview .sf-recommend-view__forge-row {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 4px;
+	margin-bottom: 10px;
+}
+
+.ff-ui-style-preview .sf-recommend-view__forge-row--focus {
+	margin-top: auto;
+	margin-bottom: 0;
+	justify-content: flex-end;
+}
+
+.ff-ui-style-preview .sf-recommend-view__forge-family,
+.ff-ui-style-preview .sf-recommend-view__forge-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 5px 6px;
+	color: var(--sf-recommend-tabs-color, var(--text-muted));
+	font-size: calc(var(--font-ui-medium) * 1.4);
+}
+
+.ff-ui-style-preview .sf-recommend-view__forge-family {
+	color: var(--sf-recommend-focus-mode-icon-color, var(--text-muted));
+}
+
+.ff-ui-style-preview .sf-recommend-view__forge-icon:hover,
+.ff-ui-style-preview .sf-recommend-view__forge-icon.is-active {
+	color: var(--sf-recommend-tabs-active-color, var(--text-accent));
+}
+
+.ff-ui-style-preview .sf-recommend-view__forge-family svg,
+.ff-ui-style-preview .sf-recommend-view__forge-icon svg {
+	width: 1em;
+	height: 1em;
 }
 
 /* Nested tabs: the wrapper holding the deepest visible tab bar owns the scrolling,
@@ -756,6 +923,10 @@
 /* ── Editor typography (standalone + Forge hosts) ──────────────────────── */
 
 .markdown-reading-view h1 a:not(#formatforge-specificity-boost),
+.HyperMD-header-1 .cm-hmd-internal-link:not(#formatforge-specificity-boost),
+.HyperMD-header-1 .cm-link:not(#formatforge-specificity-boost),
+.HyperMD-header-1 .cm-hmd-internal-link .cm-underline:not(#formatforge-specificity-boost),
+.HyperMD-header-1 .cm-link .cm-underline:not(#formatforge-specificity-boost),
 .cm-header-1.cm-hmd-internal-link:not(#formatforge-specificity-boost),
 .cm-header-1.cm-link:not(#formatforge-specificity-boost),
 .cm-header-1.cm-hmd-internal-link .cm-underline:not(#formatforge-specificity-boost),
@@ -772,9 +943,14 @@
 	font-family: var(--sf-body-family, revert);
 	font-variation-settings: var(--sf-body-variation, revert);
 }
-.markdown-reading-view strong:not(#formatforge-specificity-boost),
-.cm-strong:not(#formatforge-specificity-boost) {
+.markdown-reading-view :is(strong, b):not(#formatforge-specificity-boost),
+.cm-line .cm-strong:not(#formatforge-specificity-boost) {
 	color: var(--sf-body-bold-color, revert);
+	font-weight: bold;
+	/* Body/quote lines pin "wght" for variable fonts; that inherits onto
+	   strong and overrides the UA font-weight: bold. Reset so bold can drive
+	   the axis (variable fonts) or select the bold face (static fonts). */
+	font-variation-settings: normal;
 }
 .markdown-reading-view em:not(#formatforge-specificity-boost),
 .cm-em:not(#formatforge-specificity-boost) {
@@ -914,6 +1090,56 @@
 	font-variant: var(--sf-h6-variant, revert);
 }
 
+/* Code (inline + fenced): theme default, not body, so monospace is preserved. */
+.markdown-reading-view :is(code, pre):not(#formatforge-specificity-boost),
+.cm-inline-code:not(#formatforge-specificity-boost),
+.HyperMD-codeblock:not(#formatforge-specificity-boost) {
+	font-size: var(--sf-code-size, revert);
+	color: var(--sf-code-color, revert);
+	font-weight: var(--sf-code-weight, revert);
+	font-family: var(--sf-code-family, revert);
+	font-variation-settings: var(--sf-code-variation, revert);
+	background-color: var(--sf-code-bg, revert);
+}
+
+.markdown-reading-view pre code:not(#formatforge-specificity-boost) {
+	background-color: transparent;
+}
+
+/* Block quote: text follows body when not overridden; background and side bar are independent. */
+.markdown-reading-view blockquote:not(#formatforge-specificity-boost),
+.HyperMD-quote:not(#formatforge-specificity-boost),
+.cm-quote:not(#formatforge-specificity-boost) {
+	font-size: var(--sf-quote-size, var(--sf-body-size, revert));
+	color: var(--sf-quote-color, var(--sf-body-color, revert));
+	font-weight: var(--sf-quote-weight, var(--sf-body-weight, revert));
+	font-family: var(--sf-quote-family, var(--sf-body-family, revert));
+	font-variation-settings: var(--sf-quote-variation, var(--sf-body-variation, revert));
+}
+
+.markdown-reading-view blockquote:not(#formatforge-specificity-boost),
+.HyperMD-quote:not(#formatforge-specificity-boost) {
+	background-color: var(--sf-quote-bg, revert);
+	border-inline-start-color: var(--sf-quote-border, revert);
+	border-left-color: var(--sf-quote-border, revert);
+}
+
+.HyperMD-quote:not(#formatforge-specificity-boost)::before {
+	border-left-color: var(--sf-quote-border, revert);
+	border-inline-start-color: var(--sf-quote-border, revert);
+}
+
+/* List markers only — list body text stays on the Body text styles. */
+.markdown-reading-view ol > li:not(#formatforge-specificity-boost)::marker,
+.cm-formatting-list-ol:not(#formatforge-specificity-boost) {
+	color: var(--sf-ol-marker, revert);
+}
+
+.markdown-reading-view ul > li:not(#formatforge-specificity-boost)::marker,
+.cm-formatting-list-ul:not(#formatforge-specificity-boost) {
+	color: var(--sf-ul-marker, revert);
+}
+
 /* ── Font picker modal ─────────────────────────────────────────────────── */
 
 .modal.ff-font-picker-modal {
@@ -962,16 +1188,24 @@
 	box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
 
+.ff-font-picker-list.is-small-caps .ff-font-picker-sample {
+	font-variant: small-caps;
+}
+
+.ff-font-picker-toolbar {
+	flex-shrink: 0;
+}
+
+.ff-font-picker-toolbar .setting-item {
+	border: none;
+	padding: 0 10px 12px;
+}
+
 /* Always the last row — a divider sets it apart from the real font catalogue above it. */
 .ff-font-picker-row.ff-font-picker-theme-default {
 	margin-top: 6px;
 	border-top: 1px solid var(--background-modifier-border);
 	border-radius: 0;
-}
-
-.ff-font-picker-row.ff-font-picker-theme-default .ff-font-picker-sample {
-	color: var(--text-muted);
-	font-style: italic;
 }
 
 .ff-font-picker-cell {

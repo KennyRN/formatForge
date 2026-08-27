@@ -1,6 +1,7 @@
 import { App, Modal } from "obsidian";
 import {
 	PaletteColor,
+	PaletteName,
 	resolvePaletteColors,
 	resolvePaletteVariant,
 } from "../colorPalettes";
@@ -11,19 +12,34 @@ export interface PalettePickerThemeDefaultOption {
 	onSelect: () => void | Promise<void>;
 }
 
+/** Prepends a "Muted" choice above every palette colour, for callers with a muted override. */
+export interface PalettePickerMutedOption {
+	isActive: boolean;
+	onSelect: () => void | Promise<void>;
+}
+
+/** The live theme's `--text-muted`, for swatches that need to show the real muted colour. */
+export function resolveThemeMutedColor(): string {
+	const value = getComputedStyle(document.body).getPropertyValue("--text-muted").trim();
+	return value || "#999999";
+}
+
 /**
  * Lists every colour in the given palette/variant (official name + swatch, top to bottom).
- * Clicking a row picks that colour and closes the modal. When `themeDefault` is supplied, a
- * "Theme default" row is appended at the very bottom, after every palette colour.
+ * Clicking a row picks that colour and closes the modal. When `muted` is supplied, a "Muted" row
+ * is prepended above the palette colours (separated by a small gap). When `themeDefault` is
+ * supplied, a "Theme default" row is appended at the very bottom — replacing the older pattern
+ * of a separate "Theme default" toggle next to the swatch (see bindColorSwatchButton).
  */
 export class PalettePickerModal extends Modal {
 	constructor(
 		app: App,
-		private paletteName: string,
+		private paletteName: PaletteName,
 		private variantName: string,
 		private customPaletteColors: PaletteColor[],
 		private onPick: (hex: string) => void | Promise<void>,
 		private themeDefault?: PalettePickerThemeDefaultOption,
+		private muted?: PalettePickerMutedOption,
 	) {
 		super(app);
 	}
@@ -52,10 +68,25 @@ export class PalettePickerModal extends Modal {
 
 		const colors = resolvePaletteColors(this.paletteName, this.variantName, this.customPaletteColors);
 		const list = contentEl.createDiv({ cls: "sf-palette-list" });
+
+		if (this.muted) {
+			const muted = this.muted;
+			const mutedColor = resolveThemeMutedColor();
+			const row = list.createDiv({ cls: "sf-row sf-palette-row sf-palette-muted" });
+			if (muted.isActive) row.addClass("is-selected");
+			const swatch = row.createDiv({ cls: "sf-palette-swatch" });
+			swatch.setCssStyles({ backgroundColor: mutedColor });
+			row.createSpan({ cls: "sf-palette-name", text: "Muted" });
+			row.addEventListener("click", () => {
+				void muted.onSelect();
+				this.close();
+			});
+		}
+
 		for (const color of colors) {
 			const row = list.createDiv({ cls: "sf-row sf-palette-row" });
 			const swatch = row.createDiv({ cls: "sf-palette-swatch" });
-			swatch.style.backgroundColor = color.hex;
+			swatch.setCssStyles({ backgroundColor: color.hex });
 			row.createSpan({ cls: "sf-palette-name", text: color.name });
 			row.createSpan({ cls: "sf-palette-hex", text: color.hex.toUpperCase() });
 			row.addEventListener("click", () => {

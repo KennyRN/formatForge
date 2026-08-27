@@ -47,6 +47,20 @@ function buildEditorStyleVars(s: FormatForgeSettings): Record<string, string | n
 	vars["--sf-body-highlight-bg"] = s.bodyHighlightOverride ? s.bodyHighlightBgColor : null;
 	vars["--sf-body-highlight-color"] = s.bodyHighlightOverrideText ? s.bodyHighlightTextColor : null;
 
+	assignFont("--sf-code", s.codeOverrideFont, s.codeFontFamily, s.codeFontWeight);
+	vars["--sf-code-color"] = s.codeOverrideColor ? s.codeColor : null;
+	vars["--sf-code-size"] = s.codeOverrideSize ? `${s.codeSize}em` : null;
+	vars["--sf-code-bg"] = s.codeOverrideBg ? s.codeBgColor : null;
+
+	assignFont("--sf-quote", s.blockquoteOverrideFont, s.blockquoteFontFamily, s.blockquoteFontWeight);
+	vars["--sf-quote-color"] = s.blockquoteOverrideColor ? s.blockquoteColor : null;
+	vars["--sf-quote-size"] = s.blockquoteOverrideSize ? `${s.blockquoteSize}em` : null;
+	vars["--sf-quote-bg"] = s.blockquoteOverrideBg ? s.blockquoteBgColor : null;
+	vars["--sf-quote-border"] = s.blockquoteOverrideBorder ? s.blockquoteBorderColor : null;
+
+	vars["--sf-ol-marker"] = s.orderedListOverrideColor ? s.orderedListColor : null;
+	vars["--sf-ul-marker"] = s.unorderedListOverrideColor ? s.unorderedListColor : null;
+
 	assignFont("--sf-h1", s.heading1OverrideFont, s.heading1FontFamily, s.heading1FontWeight);
 	vars["--sf-h1-color"] = s.heading1OverrideColor ? s.heading1Color : null;
 	vars["--sf-h1-variant"] = s.heading1SmallCaps ? "small-caps" : null;
@@ -56,7 +70,7 @@ function buildEditorStyleVars(s: FormatForgeSettings): Record<string, string | n
 	vars["--sf-h1-border-bottom"] = s.heading1DividerBelow
 		? `${HEADING_DIVIDER_WIDTH_PX[s.heading1DividerBelowThickness]}px solid var(--background-modifier-border)`
 		: null;
-	vars["--sf-h1-link-color"] = s.hideHeading1Links ? "inherit" : null;
+	vars["--sf-h1-link-color"] = s.hideHeading1Links ? "var(--sf-h1-color, var(--h1-color))" : null;
 	vars["--sf-h1-link-decoration"] = s.hideHeading1Links ? "none" : null;
 
 	for (const n of [2, 3, 4, 5, 6] as const) {
@@ -212,6 +226,15 @@ describe("formatForge settings + style var stress", () => {
 			bodyLinkRemoveUnderline: true,
 			bodyHighlightOverride: true,
 			bodyHighlightOverrideText: true,
+			codeOverrideColor: true,
+			codeOverrideFont: true,
+			codeOverrideSize: true,
+			codeOverrideBg: true,
+			blockquoteOverrideColor: true,
+			blockquoteOverrideBg: true,
+			blockquoteOverrideBorder: true,
+			orderedListOverrideColor: true,
+			unorderedListOverrideColor: true,
 			hideHeading1Links: true,
 			heading1OverrideColor: true,
 			heading1OverrideFont: true,
@@ -241,8 +264,17 @@ describe("formatForge settings + style var stress", () => {
 			expect(vars["--sf-body-link-decoration"]).toBe("none");
 			expect(vars["--sf-body-highlight-bg"]).toBe(on.bodyHighlightBgColor);
 			expect(vars["--sf-body-highlight-color"]).toBe(on.bodyHighlightTextColor);
+			expect(vars["--sf-code-color"]).toBe(on.codeColor);
+			expect(vars["--sf-code-size"]).toBe(`${on.codeSize}em`);
+			expect(vars["--sf-code-family"]).toContain("storyForge");
+			expect(vars["--sf-code-bg"]).toBe(on.codeBgColor);
+			expect(vars["--sf-quote-color"]).toBe(on.blockquoteColor);
+			expect(vars["--sf-quote-bg"]).toBe(on.blockquoteBgColor);
+			expect(vars["--sf-quote-border"]).toBe(on.blockquoteBorderColor);
+			expect(vars["--sf-ol-marker"]).toBe(on.orderedListColor);
+			expect(vars["--sf-ul-marker"]).toBe(on.unorderedListColor);
 			expect(vars["--sf-h1-variant"]).toBe("small-caps");
-			expect(vars["--sf-h1-link-color"]).toBe("inherit");
+			expect(vars["--sf-h1-link-color"]).toBe("var(--sf-h1-color, var(--h1-color))");
 			expect(vars["--sf-h1-border-top"]).toMatch(/px solid/);
 			expect(Object.keys(vars).length).toBeGreaterThan(20);
 		}

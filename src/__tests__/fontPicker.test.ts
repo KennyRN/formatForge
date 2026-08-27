@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CUSTOM_FONTS } from "../fonts";
-import { previewWeightsFor, weightNameFor } from "../view/fontPickerUtils";
+import { displayNameFromComputedFontFamily, previewWeightsFor, weightNameFor } from "../view/fontPickerUtils";
 
 describe("FontPickerModal preview weights", () => {
 	it("lists every catalog font alphabetically with expected samples", () => {
@@ -32,5 +32,17 @@ describe("FontPickerModal preview weights", () => {
 		expect(weightNameFor(600)).toBe("Semi Bold");
 		expect(weightNameFor(700)).toBe("Bold");
 		expect(weightNameFor(900)).toBe("Black");
+	});
+});
+
+describe("displayNameFromComputedFontFamily", () => {
+	it("uses the first named face in a stack", () => {
+		expect(displayNameFromComputedFontFamily(`"Inter", sans-serif`)).toBe("Inter");
+		expect(displayNameFromComputedFontFamily("Inter, ui-sans-serif, sans-serif")).toBe("Inter");
+	});
+
+	it("falls back to Theme default for generic families", () => {
+		expect(displayNameFromComputedFontFamily("sans-serif")).toBe("Theme default");
+		expect(displayNameFromComputedFontFamily("")).toBe("Theme default");
 	});
 });

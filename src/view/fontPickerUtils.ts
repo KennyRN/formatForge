@@ -41,6 +41,15 @@ export function previewWeightsFor(font: CustomFontEntry): number[] {
 	return [...new Set(weights)];
 }
 
+/** First named face from a computed `font-family` stack, or `"Theme default"` for generics. */
+export function displayNameFromComputedFontFamily(fontFamily: string): string {
+	const first = fontFamily.split(",")[0]?.trim().replace(/^["']|["']$/g, "") ?? "";
+	if (!first || /^(sans-serif|serif|monospace|cursive|fantasy|system-ui)$/i.test(first)) {
+		return "Theme default";
+	}
+	return first;
+}
+
 export function weightPreviewLabel(weight: number, font: CustomFontEntry): string {
 	if (font.weightMin === font.weightMax) return weightNameFor(weight);
 	if (weight === font.weightMin) return `${weightNameFor(weight)} (${weight})`;

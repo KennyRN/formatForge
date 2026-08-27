@@ -46,6 +46,15 @@ export interface SfFormatCompanionRegistration {
 	pluginId: string;
 	version: number;
 	openSettings?: () => void;
+	/** Open formatForge's combined settings modal (Text styling + Formatting themes + Palette)
+	 * directly, bypassing Obsidian's Settings window. Falls back to openSettings() on an older
+	 * formatForge that doesn't register this hook. */
+	openFormattingModal?: () => void;
+	/** Open formatForge's own TextStyleModal directly, bypassing Obsidian's Settings window. */
+	openTextStyleModal?: () => void;
+	/** Open formatForge's own FormattingExportModal (theme save/preview/apply/share) directly,
+	 * bypassing Obsidian's Settings window. */
+	openThemesModal?: () => void;
 	onHostStylesApplied?: () => void;
 	resolveFont?: (familyId: string, weight: number) => SfFontResolveResult | null;
 	registerFacesForDocument?: (doc: Document) => void;
@@ -78,6 +87,11 @@ export interface SfFormattingApi {
 		partial: Partial<Record<SfLinkedFormattingKey, unknown>>,
 	): Promise<void>;
 	applyLinkedStyles(): void;
+	/**
+	 * Open storyForge's interface chrome modal. formatForge calls this instead of owning a
+	 * second copy. Available when storyForge exposes the method.
+	 */
+	openInterfaceModal?: () => void;
 	setStyleVars(vars: Record<string, string | null>): void;
 	getStyleDocuments(): Document[];
 	getPalette(): { name: SfPaletteName; variant: string; customColors: SfPaletteColor[] };

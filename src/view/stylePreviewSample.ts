@@ -44,7 +44,7 @@ function mountCyclingGuide(parent: HTMLElement): void {
 export function mountStylePreviewSample(container: HTMLElement, opts?: StylePreviewSampleOptions): void {
 	container.empty();
 
-	el(container, "h1").setText("Lorem ipsum dolor sit amet");
+	el(container, "h1").createEl("a", { text: "Lorem ipsum dolor sit amet", attr: { href: "#" } });
 	paragraph(
 		container,
 		"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ",
@@ -61,6 +61,23 @@ export function mountStylePreviewSample(container: HTMLElement, opts?: StylePrev
 		container,
 		"Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.",
 	);
+
+	el(container, "blockquote").setText(
+		"Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit.",
+	);
+
+	const codeBlock = el(container, "pre");
+	codeBlock.createEl("code", { text: "lorem.ipsum({ dolor: true });" });
+
+	const numbered = el(container, "ol");
+	numbered.createEl("li", { text: "Ut enim ad minima veniam" });
+	numbered.createEl("li", { text: "Quis nostrum exercitationem" });
+	numbered.createEl("li", { text: "Nisi ut aliquid ex ea commodi" });
+
+	const bullets = el(container, "ul");
+	bullets.createEl("li", { text: "Consectetur adipiscing elit" });
+	bullets.createEl("li", { text: "Sed do eiusmod tempor" });
+	bullets.createEl("li", { text: "Incididunt ut labore" });
 
 	if (opts?.cyclingGuideEnabled) {
 		mountCyclingGuide(container);

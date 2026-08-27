@@ -32,7 +32,7 @@ When a Forge host is enabled, formatForge can also adjust that host’s formatti
 
 | Host | What formatForge contributes |
 |---|---|
-| **storyForge** | Registers as formatting companion; applies editor CSS vars; shared palette / sizes / scrollbar; panel chrome (library, unplaced, codex, cycling guide) via the storyForge interface modal |
+| **storyForge** | Registers as formatting companion; applies editor CSS vars; shared palette / sizes / scrollbar; font pickers on storyForge's interface modal |
 | **timelineForge** | Font catalogue, font picker, and face registration for the timeline rail (controls live in timelineForge’s appearance UI) |
 
 Hosts are detected at runtime. Missing hosts are ignored — there is no required-plugin warning.
