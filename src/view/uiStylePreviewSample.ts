@@ -361,8 +361,10 @@ function stylePreviewPlotCard(
 ): void {
 	headerRow.setCssStyles({ backgroundColor: thread.color, color: thread.text });
 	nameEl.setCssStyles({ color: thread.text });
-	block.style.setProperty("--sf-plot-card-header-bg", thread.color);
-	block.style.setProperty("--sf-plot-card-header-fg", thread.text);
+	block.setCssProps({
+		"--sf-plot-card-header-bg": thread.color,
+		"--sf-plot-card-header-fg": thread.text,
+	});
 	const lineCenterX = gutter.lineOffsets[lineIndex] + GUTTER_LINE_WIDTH / 2;
 	const cardPad = 16;
 	const headerMarginLeft = lineCenterX - gutter.cardShift - cardPad;
@@ -372,7 +374,7 @@ function stylePreviewPlotCard(
 	});
 	headerRow.setCssStyles({ marginLeft: `${headerMarginLeft}px` });
 	const extraBleed = Math.max(0, -cardPad - headerMarginLeft);
-	headerRow.style.paddingLeft = `${cardPad + extraBleed}px`;
+	headerRow.setCssStyles({ paddingLeft: `${cardPad + extraBleed}px` });
 }
 
 /** Navigation preview — mirrors the live Story Context tab strip (and Forge-family member row). */
@@ -488,8 +490,10 @@ function mountDossierPreview(rail: HTMLElement): void {
 function mountChapterPreview(rail: HTMLElement): void {
 	const recommend = mountRecommendChrome(rail, "chapter");
 	const body = recommend.createDiv({ cls: "sf-recommend-body sf-recommend-body--scroll" });
-	body.style.setProperty("--sf-plot-card-header-bg", "var(--interactive-accent)");
-	body.style.setProperty("--sf-plot-card-header-fg", "var(--text-on-accent)");
+	body.setCssProps({
+		"--sf-plot-card-header-bg": "var(--interactive-accent)",
+		"--sf-plot-card-header-fg": "var(--text-on-accent)",
+	});
 
 	const card = body.createDiv({
 		cls: "sf-recommend-plot-block sf-recommend-plot-block--plain sf-recommend-plot-block--chapter",
