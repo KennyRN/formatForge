@@ -159,3 +159,15 @@ export function coerceSettings(
 	settings.customPaletteColors = settings.customPaletteColors.map((color) => ({ ...color }));
 	return { settings, rejected };
 }
+
+/** Live UI writes: persist only values that pass the same contract as import/load. */
+export function assignSettingValue(
+	settings: Record<string, unknown>,
+	key: string,
+	value: unknown,
+): void {
+	if (!isValidSettingValue(key, value)) {
+		throw new Error(`Invalid value for ${key}`);
+	}
+	settings[key] = value;
+}

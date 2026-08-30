@@ -6,6 +6,12 @@ import { CUSTOM_FONTS, resolveCustomFontFamilyParts, registerCustomFontFaces } f
 import { softConnectWithRetry } from "../hostConnectRetry";
 import { DEFAULT_SETTINGS, HEADING_DIVIDER_WIDTH_PX, type FormatForgeSettings } from "../settings";
 import { getSfFormattingApi, type SfFormattingApi, type StoryForgeHostApi } from "../storyforgeBridge";
+import {
+	hostSupportsBackupExports,
+	hostSupportsBatchUpdates,
+	hostSupportsPresetManagement,
+	hostSupportsThemeLibrary,
+} from "../storyforgeBridge";
 import { mountUiStylePreviewSample } from "../view/uiStylePreviewSample";
 
 function decodeMagic(b64: string): string {
@@ -363,6 +369,28 @@ describe("formatForge storyForge bridge stress", () => {
 		expect(getSfFormattingApi(app as never)).toBeNull();
 	});
 
+	it("accepts a formatting-only host that omits registerViewContribution", () => {
+		const formatting = {
+			version: 2,
+			isCompanionActive: () => true,
+			registerCompanion: () => () => undefined,
+			getLinkedSettings: () => ({}) as never,
+			getLinkedSetting: () => undefined,
+			updateLinkedSetting: async () => undefined,
+			applyLinkedStyles: () => undefined,
+			setStyleVars: () => undefined,
+			getStyleDocuments: () => [],
+			getPalette: () => ({ name: "Custom", variant: "", customColors: [] }),
+			updatePalette: async () => undefined,
+		} as unknown as SfFormattingApi;
+		const app = {
+			plugins: {
+				getPlugin: () => ({ api: { version: 2, formatting } satisfies Partial<StoryForgeHostApi> }),
+			},
+		};
+		expect(getSfFormattingApi(app as never)).toBe(formatting);
+	});
+
 	it("linked key union in bridge covers size + chrome families", async () => {
 		// Compile-time-ish runtime check: critical keys exist in the type's expected set via a mock API
 		const store: Record<string, unknown> = {
@@ -378,7 +406,7 @@ describe("formatForge storyForge bridge stress", () => {
 			isCompanionActive: () => true,
 			registerCompanion: () => () => undefined,
 			getLinkedSettings: () => store as never,
-			getLinkedSetting: (k) => store[k],
+			getLinkedSetting: (k) => store[k] as never,
 			updateLinkedSetting: async (k, v) => {
 				store[k] = v;
 			},
@@ -398,7 +426,8 @@ describe("formatForge storyForge bridge stress", () => {
 
 		for (let i = 0; i < 200; i++) {
 			await api.updateLinkedSetting("bodyTextSize", 0.7 + (i % 10) * 0.1);
-			expect(api.getLinkedSetting("bodyTextSize")).toBeCloseTo(0.7 + (i % 10) * 0.1);
+			const size: number = api.getLinkedSetting("bodyTextSize");
+			expect(size).toBeCloseTo(0.7 + (i % 10) * 0.1);
 		}
 		await api.updatePalette({ name: "Custom" });
 		expect(api.getPalette().name).toBe("Custom");
@@ -417,27 +446,37 @@ describe("formatForge storyForge bridge stress", () => {
 		let lookupCount = 0;
 		let unregisterCompanion: (() => void) | null = null;
 		let apiRef: SfFormattingApi | null = null;
-		const registerCompanion = vi.fn(() => {
-			const dispose = () => undefined;
-			return dispose;
-		});
+		/** Production tryConnect: miss → handleStoryForgeDisconnect (invoke disposer, snapshot, restyle). */
+		const dispose = vi.fn();
+		const snapshot = vi.fn();
+		const restyle = vi.fn();
+		const registerCompanion = vi.fn(() => dispose);
 		const formatting = {
 			version: 2,
 			registerCompanion,
 			getStyleDocuments: () => [],
+			getLinkedSettings: () => ({ bodyTextSize: 1.2 }),
 			registerViewContribution: () => () => undefined,
 		} as unknown as SfFormattingApi;
 
-		/** Mirrors connectToStoryForge tryConnect: getSfFormattingApi null until host is ready. */
 		const getApi = (): SfFormattingApi | null => {
 			lookupCount += 1;
-			// First few probes miss (SF still loading), then the real API appears.
 			return lookupCount <= 3 ? null : formatting;
 		};
 
 		const tryConnect = (): boolean => {
 			const sfApi = getApi();
 			if (!sfApi) {
+				const wasConnected = apiRef !== null || unregisterCompanion !== null;
+				if (wasConnected) {
+					snapshot();
+					try {
+						unregisterCompanion?.();
+					} catch {
+						/* host may already be dead */
+					}
+					restyle();
+				}
 				unregisterCompanion = null;
 				apiRef = null;
 				return false;
@@ -482,10 +521,130 @@ describe("formatForge storyForge bridge stress", () => {
 			expect.objectContaining({ pluginId: "formatforge", version: 1 }),
 		);
 		expect(unregisterCompanion).not.toBeNull();
+		expect(dispose).not.toHaveBeenCalled();
+		expect(snapshot).not.toHaveBeenCalled();
+		expect(restyle).not.toHaveBeenCalled();
 		// Keepalive timer stays so host hot-reload can be detected.
 		expect(timers.has(registeredIntervals[0])).toBe(true);
 
 		vi.useRealTimers();
+	});
+
+	it("poll disconnect invokes the disposer, snapshots linked values, and restyles", () => {
+		vi.useFakeTimers();
+		const timers = new Map<number, () => void>();
+		let nextId = 1;
+		const setIntervalFn = ((cb: () => void, _ms?: number) => {
+			const id = nextId++;
+			timers.set(id, cb);
+			return id as unknown as ReturnType<typeof setInterval>;
+		}) as typeof setInterval;
+
+		const dispose = vi.fn();
+		const snapshot = vi.fn();
+		const restyle = vi.fn();
+		let live = true;
+		const formatting = {
+			version: 9,
+			registerCompanion: vi.fn(() => dispose),
+			getStyleDocuments: () => [],
+			getLinkedSettings: () => ({ bodyTextSize: 1.35 }),
+			registerViewContribution: () => () => undefined,
+		} as unknown as SfFormattingApi;
+
+		let unregisterCompanion: (() => void) | null = null;
+		let apiRef: SfFormattingApi | null = null;
+		const tryConnect = (): boolean => {
+			const sfApi = live ? formatting : null;
+			if (!sfApi) {
+				const wasConnected = apiRef !== null || unregisterCompanion !== null;
+				if (wasConnected) {
+					snapshot();
+					try {
+						unregisterCompanion?.();
+					} catch {
+						/* host may already be dead */
+					}
+					restyle();
+				}
+				unregisterCompanion = null;
+				apiRef = null;
+				return false;
+			}
+			if (unregisterCompanion && apiRef === sfApi) return true;
+			unregisterCompanion = sfApi.registerCompanion({
+				pluginId: "formatforge",
+				version: 1,
+			});
+			apiRef = sfApi;
+			return true;
+		};
+
+		const registeredIntervals: number[] = [];
+		softConnectWithRetry(tryConnect, {
+			registerInterval: (id) => {
+				registeredIntervals.push(id);
+				return id;
+			},
+			onLayoutChange: () => undefined,
+			setIntervalFn,
+			intervalMs: 500,
+		});
+		expect(dispose).not.toHaveBeenCalled();
+
+		live = false;
+		timers.get(registeredIntervals[0])?.();
+		expect(dispose).toHaveBeenCalledTimes(1);
+		expect(snapshot).toHaveBeenCalledTimes(1);
+		expect(restyle).toHaveBeenCalledTimes(1);
+		expect(apiRef).toBeNull();
+		expect(unregisterCompanion).toBeNull();
+
+		timers.get(registeredIntervals[0])?.();
+		expect(dispose).toHaveBeenCalledTimes(1);
+		expect(restyle).toHaveBeenCalledTimes(1);
+
+		vi.useRealTimers();
+	});
+
+	it("onHostDisconnect restyles after the host stripped vars and makes a later poll a no-op", () => {
+		const dispose = vi.fn();
+		const restyle = vi.fn();
+		const mirrored: Array<Record<string, unknown>> = [];
+		const formatting = {
+			version: 9,
+			registerCompanion: (reg: { onHostDisconnect?: (linked: Record<string, unknown>) => void }) => {
+				registered = reg;
+				return dispose;
+			},
+			getStyleDocuments: () => [],
+			getLinkedSettings: () => ({ bodyTextSize: 1.4, colorPaletteName: "Custom" }),
+			registerViewContribution: () => () => undefined,
+		} as unknown as SfFormattingApi;
+		let registered: { onHostDisconnect?: (linked: Record<string, unknown>) => void } | undefined;
+
+		let unregisterCompanion: (() => void) | null = null;
+		let apiRef: SfFormattingApi | null = formatting;
+		unregisterCompanion = formatting.registerCompanion({
+			pluginId: "formatforge",
+			version: 1,
+			onHostDisconnect: (linked: Record<string, unknown>) => {
+				mirrored.push(linked);
+				unregisterCompanion = null;
+				apiRef = null;
+				restyle();
+			},
+		} as never);
+
+		const snapshot = formatting.getLinkedSettings();
+		registered?.onHostDisconnect?.(snapshot);
+		expect(mirrored).toEqual([{ bodyTextSize: 1.4, colorPaletteName: "Custom" }]);
+		expect(restyle).toHaveBeenCalledTimes(1);
+		expect(apiRef).toBeNull();
+
+		const wasConnected = apiRef !== null || unregisterCompanion !== null;
+		expect(wasConnected).toBe(false);
+		expect(dispose).not.toHaveBeenCalled();
 	});
 
 	it("rebinds registerCompanion when storyForge api object identity changes", () => {
@@ -498,13 +657,19 @@ describe("formatForge storyForge bridge stress", () => {
 			return id as unknown as ReturnType<typeof setInterval>;
 		}) as typeof setInterval;
 
-		const makeApi = () =>
-			({
+		const makeApi = () => {
+			const dispose = vi.fn();
+			return {
 				version: 2,
-				registerCompanion: vi.fn(() => () => undefined),
+				registerCompanion: vi.fn(() => dispose),
 				getStyleDocuments: () => [],
 				registerViewContribution: () => () => undefined,
-			}) as unknown as SfFormattingApi & { registerCompanion: ReturnType<typeof vi.fn> };
+				dispose,
+			} as unknown as SfFormattingApi & {
+				registerCompanion: ReturnType<typeof vi.fn>;
+				dispose: ReturnType<typeof vi.fn>;
+			};
+		};
 
 		let currentApi: SfFormattingApi | null = makeApi();
 		let unregisterCompanion: (() => void) | null = null;
@@ -513,11 +678,21 @@ describe("formatForge storyForge bridge stress", () => {
 		const tryConnect = (): boolean => {
 			const sfApi = currentApi;
 			if (!sfApi) {
+				try {
+					unregisterCompanion?.();
+				} catch {
+					/* host may already be dead */
+				}
 				unregisterCompanion = null;
 				apiRef = null;
 				return false;
 			}
 			if (unregisterCompanion && apiRef === sfApi) return true;
+			try {
+				unregisterCompanion?.();
+			} catch {
+				/* old host may already be dead */
+			}
 			unregisterCompanion = sfApi.registerCompanion({
 				pluginId: "formatforge",
 				version: 1,
@@ -544,6 +719,7 @@ describe("formatForge storyForge bridge stress", () => {
 		timers.get(registeredIntervals[0])?.();
 
 		expect((firstApi as unknown as { registerCompanion: ReturnType<typeof vi.fn> }).registerCompanion).toHaveBeenCalledTimes(1);
+		expect((firstApi as unknown as { dispose: ReturnType<typeof vi.fn> }).dispose).toHaveBeenCalledTimes(1);
 		expect((currentApi as unknown as { registerCompanion: ReturnType<typeof vi.fn> }).registerCompanion).toHaveBeenCalledTimes(1);
 
 		vi.useRealTimers();
@@ -551,6 +727,51 @@ describe("formatForge storyForge bridge stress", () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
+	});
+});
+
+describe("formatForge host capability probes", () => {
+	it("rejects a null or incomplete host", () => {
+		expect(hostSupportsBatchUpdates(null)).toBe(false);
+		expect(hostSupportsBackupExports(null)).toBe(false);
+		expect(hostSupportsThemeLibrary(null)).toBe(false);
+		expect(hostSupportsPresetManagement(null)).toBe(false);
+		const empty = {} as SfFormattingApi;
+		expect(hostSupportsBatchUpdates(empty)).toBe(false);
+		expect(hostSupportsBackupExports(empty)).toBe(false);
+		expect(hostSupportsThemeLibrary(empty)).toBe(false);
+		expect(hostSupportsPresetManagement(empty)).toBe(false);
+	});
+
+	it("detects v8 batch, v5 backups, v6 library, and v7 management independently", () => {
+		const v8 = {
+			updateLinkedSettings: async () => undefined,
+		} as unknown as SfFormattingApi;
+		expect(hostSupportsBatchUpdates(v8)).toBe(true);
+		expect(hostSupportsThemeLibrary(v8)).toBe(false);
+
+		const backups = {
+			saveFormattingExport: async () => "p",
+			listSettingsExports: async () => [],
+			readSettingsExport: async () => "{}",
+		} as unknown as SfFormattingApi;
+		expect(hostSupportsBackupExports(backups)).toBe(true);
+		expect(hostSupportsPresetManagement(backups)).toBe(false);
+
+		const library = {
+			saveFormattingPreset: async () => ({ path: "p", name: "n" }),
+			listFormattingPresets: async () => [],
+			readFormattingPreset: async () => "{}",
+		} as unknown as SfFormattingApi;
+		expect(hostSupportsThemeLibrary(library)).toBe(true);
+		expect(hostSupportsPresetManagement(library)).toBe(false);
+
+		const managed = {
+			...library,
+			renameFormattingPreset: async () => ({ path: "p", name: "n" }),
+			deleteFormattingPreset: async () => undefined,
+		} as unknown as SfFormattingApi;
+		expect(hostSupportsPresetManagement(managed)).toBe(true);
 	});
 });
 

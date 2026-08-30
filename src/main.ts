@@ -7,10 +7,11 @@ import {
 	type EditorScrollbarThickness,
 	type FormatForgeSettings,
 } from "./settings";
-import { coerceSettings, isValidSettingValue } from "./settingsValidation";
+import { coerceSettings, isValidSettingValue, assignSettingValue } from "./settingsValidation";
 import { softConnectWithRetry } from "./hostConnectRetry";
 import {
 	getSfFormattingApi,
+	type LinkedFormattingValues,
 	type SfFormattingApi,
 	type SfLinkedFormattingKey,
 	type SfPaletteColor,
@@ -110,7 +111,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	}
 
 	async updateSetting(key: string, value: unknown): Promise<void> {
-		(this.ffSettings as unknown as Record<string, unknown>)[key] = value;
+		assignSettingValue(this.ffSettings as unknown as Record<string, unknown>, key, value);
 		await this.saveSettings();
 	}
 
@@ -576,6 +577,32 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 	}
 
 	/**
+	 * Host API v9: storyForge already snapshotted linked settings and stripped `--sf-*`
+	 * vars. Mirror the snapshot (so SF-side palette edits survive), drop the host without
+	 * calling getLinkedSettings on a dying plugin, and restyle locally.
+	 */
+	private handleHostUnload(linked: LinkedFormattingValues): void {
+		const wasConnected = this.sfApi !== null || this.unregisterCompanion !== null;
+		if (!wasConnected) {
+			this.storyForgeApiRef = null;
+			return;
+		}
+		this.mirrorHostOwnedValues(linked);
+		void this.saveSettings();
+		let hostDocs: Document[] = [];
+		try {
+			hostDocs = this.sfApi?.getStyleDocuments() ?? [];
+		} catch {
+			hostDocs = [];
+		}
+		this.unregisterCompanion = null;
+		this.sfApi = null;
+		this.storyForgeApiRef = null;
+		this.clearEditorScrollbarStyles(hostDocs);
+		this.applyEditorStyles();
+	}
+
+	/**
 	 * Best-effort copy of the host-owned values into local settings before we let go of the
 	 * API. This also catches edits the author made in storyForge's own UI, which never passed
 	 * through `updateHostOwnedSetting`. A dead host may throw here; that is not fatal.
@@ -584,7 +611,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		const api = this.sfApi;
 		if (!api) return;
 		try {
-			const linked = api.getLinkedSettings() as Record<string, unknown>;
+			const linked = api.getLinkedSettings();
 			this.mirrorHostOwnedValues(linked);
 			void this.saveSettings();
 		} catch {
@@ -638,6 +665,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 					new FormattingExportModal(this.app, this).open();
 				},
 				onHostStylesApplied: () => this.applyEditorStyles(),
+				onHostDisconnect: (linked) => this.handleHostUnload(linked),
 				resolveFont: (familyId, weight) => {
 					const font = CUSTOM_FONTS.find((f) => f.id === familyId);
 					if (!font) return null;
@@ -665,6 +693,11 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 								: undefined,
 						).open();
 					});
+				},
+				exportLocalSettings: () =>
+					JSON.parse(JSON.stringify(this.ffSettings)) as Record<string, unknown>,
+				importLocalSettings: async (data) => {
+					await this.importTextStylingSettings(data);
 				},
 			});
 

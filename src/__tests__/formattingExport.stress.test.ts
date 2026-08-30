@@ -51,12 +51,14 @@ describe("formatForge formatting document stress", () => {
 				expect(reparsed.palette !== null).toBe(included.palette);
 				if (reparsed.textStyling) {
 					expect(reparsed.textStyling).not.toHaveProperty("colorPaletteName");
+					expect(reparsed.textStyling).not.toHaveProperty("cyclingGuideColor");
 				}
 				if (reparsed.storyForgeInterface) {
 					expect(reparsed.storyForgeInterface).not.toHaveProperty(
 						"colorPaletteName",
 					);
 					expect(reparsed.storyForgeInterface).not.toHaveProperty("bodyTextSize");
+					expect(reparsed.storyForgeInterface).toHaveProperty("cyclingGuideColor");
 				}
 			}
 		}
@@ -98,6 +100,10 @@ describe("formatForge formatting document stress", () => {
 			);
 			expect(migrated.version).toBe(FORMATTING_EXPORT_VERSION);
 			expect(migrated.textStyling?.bodyTextSize).toBe(LINKED.bodyTextSize);
+			expect(migrated.textStyling).not.toHaveProperty("cyclingGuideColor");
+			expect(migrated.storyForgeInterface?.cyclingGuideColor).toBe(
+				LINKED.cyclingGuideColor,
+			);
 			expect(migrated.storyForgeInterface?.recommendHeaderColor).toMatch(
 				/^#[0-9a-f]{6}$/,
 			);
@@ -107,7 +113,7 @@ describe("formatForge formatting document stress", () => {
 		}
 	});
 
-	it("rejects malformed or internally inconsistent version 2 documents", () => {
+	it("rejects malformed or internally inconsistent version 3 documents", () => {
 		const valid = buildFormattingExport(DEFAULT_SETTINGS, LINKED);
 		const mutations: Array<(value: Record<string, unknown>) => void> = [
 			(value) => {

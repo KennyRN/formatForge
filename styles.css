@@ -292,32 +292,190 @@
 
 .modal.ff-formatting-export-modal {
 	width: min(90vw, 780px);
+	height: min(90vh, 640px);
+	display: flex;
+	flex-direction: column;
+	padding: 0;
 }
 
-.ff-formatting-export-description {
+.ff-formatting-export-modal {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	padding: 16px;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.modal.ff-formatting-export-modal .sf-text-style-tab-bar {
+	padding: 0;
+}
+
+.modal.ff-formatting-export-modal .sf-text-style-tab-btn {
+	flex: 1 1 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	text-transform: none;
+}
+
+.modal.ff-formatting-export-modal .setting-item-name,
+.modal.ff-formatting-export-modal .setting-item-description {
+	text-transform: none;
+}
+
+.modal.ff-formatting-export-modal .sf-text-style-tab-body-wrapper {
+	padding-top: var(--size-4-4);
+}
+
+.modal.ff-formatting-export-modal .sf-text-style-tab-body {
+	gap: var(--size-4-3);
+}
+
+.modal.ff-formatting-export-modal .sf-text-style-tab-body > .setting-item + .setting-item,
+.modal.ff-formatting-export-modal .sf-text-style-tab-body > .setting-item + .setting-group {
 	margin-top: 0;
-	color: var(--text-muted);
 }
 
-.ff-formatting-export-text {
-	display: block;
-	width: 100%;
-	height: min(32vh, 320px);
-	resize: vertical;
+.ff-formatting-box {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
 	padding: var(--size-4-3);
 	box-sizing: border-box;
-	font-family: var(--font-monospace);
-	font-size: var(--font-ui-smaller);
-	line-height: 1.45;
-	white-space: pre;
-	tab-size: 2;
 }
 
+.ff-formatting-box > .setting-item {
+	border: none;
+	padding-top: var(--size-4-2);
+	padding-bottom: var(--size-4-2);
+}
+
+.ff-formatting-box > .setting-item:first-child {
+	padding-top: 0;
+}
+
+.ff-formatting-box > .setting-item:last-child {
+	padding-bottom: 0;
+}
+
+.ff-formatting-toggle-row {
+	display: flex;
+	width: 100%;
+	gap: var(--size-4-3);
+}
+
+.modal.ff-formatting-export-modal .ff-formatting-toggle-row > .setting-item {
+	flex: 1 1 0;
+	min-width: 0;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	border: none;
+	border-top: none;
+	padding: 0;
+	gap: var(--size-4-2);
+}
+
+.ff-formatting-toggle-row > .setting-item .setting-item-info {
+	width: 100%;
+	margin: 0;
+	text-align: center;
+}
+
+.ff-formatting-toggle-row > .setting-item .setting-item-name {
+	text-align: center;
+	white-space: normal;
+}
+
+.ff-formatting-toggle-row > .setting-item .setting-item-description {
+	display: none;
+}
+
+.ff-formatting-box .setting-item-control {
+	gap: 2px;
+}
+
+.ff-formatting-save-box {
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
+	gap: 0;
+	padding: 0;
+}
+
+.ff-formatting-save-fields {
+	flex: 1 1 0;
+	min-width: 0;
+	padding: var(--size-4-3);
+}
+
+.ff-formatting-save-fields > .setting-item {
+	border: none;
+	padding-top: var(--size-4-2);
+	padding-bottom: var(--size-4-2);
+}
+
+.ff-formatting-save-fields > .setting-item:first-child {
+	padding-top: 0;
+}
+
+.ff-formatting-save-fields > .setting-item:last-child {
+	padding-bottom: 0;
+}
+
+.ff-formatting-save-action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 56px;
+}
+
+.ff-formatting-hover-icon {
+	--icon-size: 26px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 36px;
+	height: 36px;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.ff-formatting-hover-icon svg,
+.ff-formatting-hover-icon svg.svg-icon {
+	width: 26px;
+	height: 26px;
+	flex-shrink: 0;
+}
+
+.ff-formatting-hover-icon:hover {
+	color: var(--text-normal);
+}
+
+.ff-formatting-hover-icon--stroke svg {
+	fill: none;
+}
+
+.ff-formatting-hover-icon:focus-visible {
+	outline: 2px solid var(--text-accent);
+	outline-offset: 2px;
+}
+
+.modal.ff-formatting-export-modal .setting-item-control select {
+	min-width: 220px;
+}
+
+.ff-formatting-export-text,
 .ff-formatting-import-text {
 	display: block;
 	width: 100%;
-	height: min(24vh, 240px);
-	resize: vertical;
+	resize: none;
 	padding: var(--size-4-3);
 	box-sizing: border-box;
 	font-family: var(--font-monospace);
@@ -325,6 +483,202 @@
 	line-height: 1.45;
 	white-space: pre;
 	tab-size: 2;
+}
+
+.ff-formatting-export-text {
+	height: min(28vh, 220px);
+	margin-top: var(--size-4-3);
+}
+
+.ff-formatting-import-text {
+	height: min(24vh, 240px);
+}
+
+.ff-formatting-preview-box {
+	flex: 0 0 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.ff-formatting-preview-copy {
+	/* One 1.2em title line + one description line + their bottom gaps. */
+	flex: 0 0 auto;
+	min-height: calc(1.2em * 1.3 + 1.5em + var(--size-4-2) * 2);
+}
+
+.ff-formatting-preview-title {
+	font-size: 1.2em;
+	line-height: 1.3;
+	min-width: 0;
+	display: block;
+	margin: 0 0 var(--size-4-2);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ff-formatting-preview-description {
+	min-height: 1.5em;
+	line-height: 1.5;
+	margin: 0 0 var(--size-4-2);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ff-formatting-preview-controls {
+	flex: 0 0 auto;
+}
+
+.ff-formatting-preview-box .ff-formatting-import-preview {
+	border: none;
+	background: transparent;
+	padding: 0;
+	margin: 0;
+	flex: 0 0 auto;
+}
+
+.modal.ff-json-import-modal {
+	width: min(90vw, 560px);
+	height: min(80vh, 520px);
+	display: flex;
+	flex-direction: column;
+	padding: 0;
+}
+
+.ff-json-import-modal {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	padding: 16px;
+	gap: var(--size-4-3);
+	min-height: 0;
+	overflow: hidden;
+}
+
+.ff-json-import-fields {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	gap: var(--size-4-4);
+}
+
+.modal.ff-json-import-modal .ff-json-import-fields > .setting-item,
+.modal.ff-edit-theme-modal .ff-json-import-fields > .setting-item {
+	flex: 1 1 0;
+	min-width: 0;
+	flex-direction: column-reverse;
+	align-items: stretch;
+	justify-content: flex-start;
+	border: none;
+	border-top: none;
+	padding: 0;
+	gap: var(--size-4-2);
+}
+
+.ff-json-import-fields > .setting-item .setting-item-info {
+	width: 100%;
+	margin: 0;
+	text-align: left;
+}
+
+.ff-json-import-fields > .setting-item .setting-item-name {
+	text-align: left;
+}
+
+.modal.ff-edit-theme-modal .ff-json-import-fields > .setting-item input {
+	padding-inline: var(--size-4-2);
+}
+
+.modal.ff-edit-theme-modal .ff-json-import-fields > .setting-item .setting-item-info,
+.modal.ff-edit-theme-modal .ff-json-import-fields > .setting-item .setting-item-name {
+	padding-inline: var(--size-4-2);
+	margin-inline: 0;
+}
+
+.ff-json-import-fields > .setting-item .setting-item-description {
+	display: none;
+}
+
+.ff-json-import-fields > .setting-item .setting-item-control {
+	justify-content: stretch;
+	padding: 0;
+	width: 100%;
+}
+
+.ff-json-import-fields > .setting-item input {
+	width: 100%;
+}
+
+.ff-json-import-paste {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+}
+
+.ff-json-import-modal .ff-formatting-import-text {
+	flex: 1;
+	height: auto;
+	min-height: 160px;
+}
+
+.ff-json-import-save {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-4-3);
+	width: 100%;
+	flex-shrink: 0;
+}
+
+.modal.ff-edit-theme-modal .ff-json-import-save .ff-formatting-hover-icon {
+	--icon-size: 26px;
+	width: 36px;
+	height: 36px;
+}
+
+.modal.ff-edit-theme-modal .ff-json-import-save .ff-formatting-hover-icon svg,
+.modal.ff-edit-theme-modal .ff-json-import-save .ff-formatting-hover-icon svg.svg-icon {
+	width: 26px;
+	height: 26px;
+}
+
+.modal.ff-edit-theme-modal {
+	width: min(90vw, 560px);
+}
+
+.ff-edit-theme-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.ff-formatting-preview-apply {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+}
+
+.ff-formatting-preview-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+.ff-formatting-preview-actions .ff-formatting-hover-icon {
+	--icon-size: 26px;
+	width: 36px;
+	height: 36px;
+}
+
+.ff-formatting-preview-actions .ff-formatting-hover-icon svg,
+.ff-formatting-preview-actions .ff-formatting-hover-icon svg.svg-icon {
+	width: 26px;
+	height: 26px;
 }
 
 .ff-formatting-section-labels,

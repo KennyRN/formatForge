@@ -92,7 +92,7 @@ describe("formatForge → storyForge formatting import stress", () => {
 				).toBe(selected.textStyling);
 				expect(
 					harness.updates.some(([key]) => key === "cyclingGuideColor"),
-				).toBe(selected.textStyling);
+				).toBe(selected.storyForgeInterface);
 				expect(
 					harness.updates.some(([key]) => key === "recommendHeaderColor"),
 				).toBe(selected.storyForgeInterface);
@@ -324,6 +324,7 @@ describe("formatForge → storyForge formatting import stress", () => {
 			palette: false,
 		});
 		expect(harness.updates).toEqual([
+			["cyclingGuideColor", "#123456"],
 			["recommendHeaderColor", "#abcdef"],
 			["recommendSynopsisFontSize", 0.9],
 		]);

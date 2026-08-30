@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "../settings";
-import { coerceSettings, isValidSettingValue } from "../settingsValidation";
+import { coerceSettings, isValidSettingValue, assignSettingValue } from "../settingsValidation";
 
 // Covers audit finding P1 #3 ("Untyped local import / load can corrupt persisted
 // settings"): hand-edited or downgraded data.json / theme JSON must not be able to
@@ -23,6 +23,7 @@ describe("settingsValidation", () => {
 		["bodyTextFontWeight", "450"], // not one of the allowed weights
 		["bodyTextSize", 0], // must be > 0
 		["bodyTextSize", -1],
+		["bodyTextSize", 11], // shared editor-size ceiling with storyForge
 		["bodyTextSize", Number.POSITIVE_INFINITY], // must be finite
 		["bodyTextSize", "1.2"], // string, not number
 		["bodyTextOverrideSize", "true"], // string, not boolean
@@ -79,5 +80,17 @@ describe("settingsValidation", () => {
 		const { settings } = coerceSettings(base, {});
 		settings.customPaletteColors[0].hex = "#ffffff";
 		expect(base.customPaletteColors[0].hex).toBe("#111111");
+	});
+
+	it("assignSettingValue persists a valid live edit and rejects a bad enum or unknown key", () => {
+		const settings = { ...DEFAULT_SETTINGS } as unknown as Record<string, unknown>;
+		assignSettingValue(settings, "bodyTextSize", 1.4);
+		expect(settings.bodyTextSize).toBe(1.4);
+		expect(() => assignSettingValue(settings, "bodyTextSize", 0)).toThrow("bodyTextSize");
+		expect(settings.bodyTextSize).toBe(1.4);
+		expect(() => assignSettingValue(settings, "notARealSetting", "x")).toThrow(
+			"notARealSetting",
+		);
+		expect(settings).not.toHaveProperty("notARealSetting");
 	});
 });

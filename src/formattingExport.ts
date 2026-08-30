@@ -2,7 +2,7 @@ import type { FormatForgeSettings } from "./settings";
 import type { SfLinkedFormattingKey } from "./storyforgeBridge";
 
 export const FORMATTING_EXPORT_FORMAT = "formatForge-settings" as const;
-export const FORMATTING_EXPORT_VERSION = 2 as const;
+export const FORMATTING_EXPORT_VERSION = 3 as const;
 
 export const PALETTE_KEYS = [
 	"colorPaletteName",
@@ -10,6 +10,7 @@ export const PALETTE_KEYS = [
 	"customPaletteColors",
 ] as const;
 
+/** Editor sizes and scrollbar — stored on storyForge, edited from formatForge text styling. */
 export const SF_TEXT_STYLING_KEYS: SfLinkedFormattingKey[] = [
 	"bodyTextOverrideSize",
 	"bodyTextSize",
@@ -25,14 +26,18 @@ export const SF_TEXT_STYLING_KEYS: SfLinkedFormattingKey[] = [
 	"heading5Size",
 	"heading6OverrideSize",
 	"heading6Size",
+	"editorScrollbarThumbColor",
+	"editorScrollbarThickness",
+];
+
+/** storyForge chrome, not formatForge settings. Lives in the interface export section. */
+export const SF_CYCLING_GUIDE_KEYS: SfLinkedFormattingKey[] = [
 	"cyclingGuideEnabled",
 	"cyclingGuideThickness",
 	"cyclingGuideColor",
 	"cyclingGuideFlagSize",
 	"cyclingGuideRoundedLines",
 	"cyclingGuideInterval",
-	"editorScrollbarThumbColor",
-	"editorScrollbarThickness",
 ];
 
 export interface FormattingExportSelection {
@@ -159,6 +164,24 @@ function isPalette(value: unknown): value is FormattingPalette {
 	);
 }
 
+function relocateCyclingGuideKeys(
+	textStyling: Record<string, unknown> | null,
+	storyForgeInterface: Record<string, unknown> | null,
+): {
+	textStyling: Record<string, unknown> | null;
+	storyForgeInterface: Record<string, unknown> | null;
+} {
+	if (!textStyling) return { textStyling, storyForgeInterface };
+	const cycling = pickKeys(textStyling, SF_CYCLING_GUIDE_KEYS);
+	if (Object.keys(cycling).length === 0) {
+		return { textStyling, storyForgeInterface };
+	}
+	return {
+		textStyling: withoutKeys(textStyling, new Set<string>(SF_CYCLING_GUIDE_KEYS)),
+		storyForgeInterface: { ...(storyForgeInterface ?? {}), ...cycling },
+	};
+}
+
 function migrateVersionOne(parsed: Record<string, unknown>): FormattingExportDocument {
 	if (!isRecord(parsed.textStyling)) {
 		throw new Error("The export is missing its Text styling settings");
@@ -170,19 +193,23 @@ function migrateVersionOne(parsed: Record<string, unknown>): FormattingExportDoc
 	const linked = parsed.storyForgeInterface;
 	const textSection = withoutKeys(local, new Set<string>(PALETTE_KEYS));
 	if (linked) Object.assign(textSection, pickKeys(linked, SF_TEXT_STYLING_KEYS));
+	const relocated = relocateCyclingGuideKeys(
+		textSection,
+		linked
+			? withoutKeys(linked, new Set<string>([...PALETTE_KEYS, ...SF_TEXT_STYLING_KEYS]))
+			: null,
+	);
 	return {
 		format: FORMATTING_EXPORT_FORMAT,
 		version: FORMATTING_EXPORT_VERSION,
 		exportedAt: typeof parsed.exportedAt === "string" ? parsed.exportedAt : new Date(0).toISOString(),
 		included: {
 			textStyling: true,
-			storyForgeInterface: linked !== null,
+			storyForgeInterface: relocated.storyForgeInterface !== null,
 			palette: true,
 		},
-		textStyling: textSection,
-		storyForgeInterface: linked
-			? withoutKeys(linked, new Set<string>([...PALETTE_KEYS, ...SF_TEXT_STYLING_KEYS]))
-			: null,
+		textStyling: relocated.textStyling,
+		storyForgeInterface: relocated.storyForgeInterface,
 		palette: {
 			colorPaletteName: linked?.colorPaletteName ?? local.colorPaletteName,
 			colorPaletteVariant: linked?.colorPaletteVariant ?? local.colorPaletteVariant,
@@ -191,7 +218,7 @@ function migrateVersionOne(parsed: Record<string, unknown>): FormattingExportDoc
 	};
 }
 
-/** Parses version 2 and migrates the original version 1 documents. */
+/** Parses version 3 and migrates version 1 and 2 documents. */
 export function parseFormattingExport(text: string): FormattingExportDocument {
 	const parsed: unknown = JSON.parse(text);
 	if (!isRecord(parsed)) throw new Error("Formatting import must be a JSON object");
@@ -199,7 +226,7 @@ export function parseFormattingExport(text: string): FormattingExportDocument {
 		throw new Error("This is not a formatForge formatting export");
 	}
 	if (parsed.version === 1) return migrateVersionOne(parsed);
-	if (parsed.version !== FORMATTING_EXPORT_VERSION) {
+	if (parsed.version !== 2 && parsed.version !== FORMATTING_EXPORT_VERSION) {
 		throw new Error(`Unsupported formatForge export version: ${String(parsed.version)}`);
 	}
 	if (
@@ -235,19 +262,24 @@ export function parseFormattingExport(text: string): FormattingExportDocument {
 		...PALETTE_KEYS,
 		...SF_TEXT_STYLING_KEYS,
 	]);
+	const relocated = relocateCyclingGuideKeys(
+		parsed.textStyling ? withoutKeys(parsed.textStyling, paletteExcluded) : null,
+		parsed.storyForgeInterface
+			? withoutKeys(parsed.storyForgeInterface, interfaceExcluded)
+			: null,
+	);
 	return {
 		format: FORMATTING_EXPORT_FORMAT,
 		version: FORMATTING_EXPORT_VERSION,
 		exportedAt: parsed.exportedAt,
 		...(typeof parsed.description === "string" ? { description: parsed.description } : {}),
-		included: parsed.included,
-		// Hand-edited docs may still bury palette/size keys; strip them so apply cannot bleed.
-		textStyling: parsed.textStyling
-			? withoutKeys(parsed.textStyling, paletteExcluded)
-			: null,
-		storyForgeInterface: parsed.storyForgeInterface
-			? withoutKeys(parsed.storyForgeInterface, interfaceExcluded)
-			: null,
+		included: {
+			textStyling: relocated.textStyling !== null,
+			storyForgeInterface: relocated.storyForgeInterface !== null,
+			palette: parsed.palette !== null,
+		},
+		textStyling: relocated.textStyling,
+		storyForgeInterface: relocated.storyForgeInterface,
 		palette: parsed.palette,
 	};
 }

@@ -1,5 +1,5 @@
 /**
- * Bridge to storyForge's formatting host API (v2 baseline; v8 current).
+ * Bridge to storyForge's formatting host API (v2 baseline; v9 current).
  *
  * All types here are local copies / subsets of storyForge's API surface so
  * formatForge has no compile-time source dependency on the storyForge package.
@@ -7,6 +7,10 @@
  */
 
 import type { App } from "obsidian";
+import type {
+	LinkedFormattingValues,
+	SfLinkedFormattingKey,
+} from "./storyforgeLinkedFormattingKeys.generated";
 
 // ── Palette ────────────────────────────────────────────────────────────────
 
@@ -56,12 +60,21 @@ export interface SfFormatCompanionRegistration {
 	 * bypassing Obsidian's Settings window. */
 	openThemesModal?: () => void;
 	onHostStylesApplied?: () => void;
+	/**
+	 * Host API v9: storyForge is unloading. Called after host `--sf-*` vars are stripped.
+	 * `linked` is a snapshot taken while the host was still alive.
+	 */
+	onHostDisconnect?: (linked: LinkedFormattingValues) => void;
 	resolveFont?: (familyId: string, weight: number) => SfFontResolveResult | null;
 	registerFacesForDocument?: (doc: Document) => void;
 	/** List formatForge's font catalog — mirrors the same method already exposed to timelineForge. */
 	listFonts?: () => SfFontInfo[];
 	/** Open formatForge's own font-picker modal, scoped to one storyForge field. */
 	openFontPicker?: (opts: SfOpenFontPickerOptions) => void;
+	/** Snapshot of formatForge-owned settings for a complete pack. Optional on older companions. */
+	exportLocalSettings?: () => Record<string, unknown>;
+	/** Apply formatForge-owned keys from a complete pack. Unknown keys are ignored. */
+	importLocalSettings?: (data: Record<string, unknown>) => Promise<void>;
 }
 
 // ── Linked key contract (generated from storyForge host) ──────────────────
@@ -70,8 +83,7 @@ export {
 	LINKED_FORMATTING_KEYS,
 	STORYFORGE_FORMATTING_CONTRACT_VERSION,
 } from "./storyforgeLinkedFormattingKeys.generated";
-export type { SfLinkedFormattingKey } from "./storyforgeLinkedFormattingKeys.generated";
-import type { SfLinkedFormattingKey } from "./storyforgeLinkedFormattingKeys.generated";
+export type { LinkedFormattingValues, SfLinkedFormattingKey } from "./storyforgeLinkedFormattingKeys.generated";
 
 // ── Formatting API surface ─────────────────────────────────────────────────
 
@@ -79,8 +91,8 @@ export interface SfFormattingApi {
 	version: number;
 	isCompanionActive(): boolean;
 	registerCompanion(reg: SfFormatCompanionRegistration): () => void;
-	getLinkedSettings(): Record<SfLinkedFormattingKey, unknown>;
-	getLinkedSetting(key: SfLinkedFormattingKey): unknown;
+	getLinkedSettings(): LinkedFormattingValues;
+	getLinkedSetting<K extends SfLinkedFormattingKey>(key: K): LinkedFormattingValues[K];
 	updateLinkedSetting(key: SfLinkedFormattingKey, value: unknown): Promise<void>;
 	/** Available from storyForge API v8; validates and persists the patch once. */
 	updateLinkedSettings?(
@@ -111,10 +123,12 @@ export interface SfFormattingApi {
 	readFormattingPreset?(path: string): Promise<string>;
 	/** Available from storyForge API v7; managed preset operations. */
 	renameFormattingPreset?(path: string, newName: string, overwrite?: boolean): Promise<{ path: string; name: string }>;
+	/** Available from storyForge API v7; archives the theme into `settings/archived-settings/`. */
 	deleteFormattingPreset?(path: string): Promise<void>;
 	/** Available from storyForge API v3; the registration record of the live companion. */
 	getCompanion?(): SfFormatCompanionRegistration | null;
-	registerViewContribution(opt: {
+	/** Present on storyForge; not required to treat a host as a formatting companion. */
+	registerViewContribution?(opt: {
 		slot: string;
 		orderHint?: number;
 		render: (containerEl: HTMLElement) => () => void;
@@ -140,7 +154,6 @@ const REQUIRED_MEMBERS = [
 	"getStyleDocuments",
 	"getPalette",
 	"updatePalette",
-	"registerViewContribution",
 ] as const satisfies readonly (keyof SfFormattingApi)[];
 
 /**

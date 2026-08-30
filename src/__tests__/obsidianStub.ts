@@ -68,3 +68,4 @@ export class Modal {
 	onClose() {}
 }
 export function setIcon(_el: HTMLElement, _icon: string): void {}
+export function addIcon(_id: string, _svg: string): void {}

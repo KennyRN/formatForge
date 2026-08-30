@@ -2,7 +2,7 @@ import { App, Modal, Setting, SettingGroup, ToggleComponent } from "obsidian";
 import type FormatForgePlugin from "../main";
 import { registerCustomFontFaces } from "../fonts";
 import type { FormatForgeSettings } from "../settings";
-import type { SfFormattingApi, SfLinkedFormattingKey } from "../storyforgeBridge";
+import type { SfFormattingApi } from "../storyforgeBridge";
 import {
 	bindColorSwatchButton,
 	renderCustomFontCard,
@@ -41,7 +41,7 @@ type LocalSizeKey = "codeSize" | "blockquoteSize";
 type EditorSizeOverrideKey = LinkedSizeOverrideKey | LocalSizeOverrideKey;
 type EditorSizeKey = LinkedSizeKey | LocalSizeKey;
 
-const LINKED_SIZE_OVERRIDE_KEYS = new Set<string>([
+const LINKED_SIZE_OVERRIDE_KEYS: readonly LinkedSizeOverrideKey[] = [
 	"bodyTextOverrideSize",
 	"heading1OverrideSize",
 	"heading2OverrideSize",
@@ -49,9 +49,9 @@ const LINKED_SIZE_OVERRIDE_KEYS = new Set<string>([
 	"heading4OverrideSize",
 	"heading5OverrideSize",
 	"heading6OverrideSize",
-]);
+];
 
-const LINKED_SIZE_KEYS = new Set<string>([
+const LINKED_SIZE_KEYS: readonly LinkedSizeKey[] = [
 	"bodyTextSize",
 	"heading1Size",
 	"heading2Size",
@@ -59,7 +59,15 @@ const LINKED_SIZE_KEYS = new Set<string>([
 	"heading4Size",
 	"heading5Size",
 	"heading6Size",
-]);
+];
+
+function isLinkedSizeOverride(key: string): key is LinkedSizeOverrideKey {
+	return (LINKED_SIZE_OVERRIDE_KEYS as readonly string[]).includes(key);
+}
+
+function isLinkedSize(key: string): key is LinkedSizeKey {
+	return (LINKED_SIZE_KEYS as readonly string[]).includes(key);
+}
 
 export class TextStyleModal extends Modal {
 	private plugin: FormatForgePlugin;
@@ -456,13 +464,15 @@ export class TextStyleModal extends Modal {
 		opts?: { extraRowBefore?: (card: SettingGroup) => void; group?: SettingGroup },
 	): void {
 		const settings = this.plugin.getTypedSettings();
-		const useLinked = !!(this.sfApi && LINKED_SIZE_OVERRIDE_KEYS.has(overrideKey));
-		const initialOverride = useLinked
-			? ((this.sfApi!.getLinkedSetting(overrideKey as SfLinkedFormattingKey) as boolean) ?? false)
-			: settings[overrideKey];
-		const initialSize = useLinked
-			? ((this.sfApi!.getLinkedSetting(sizeKey as SfLinkedFormattingKey) as number) ?? 1)
-			: settings[sizeKey];
+		let initialOverride: boolean;
+		let initialSize: number;
+		if (this.sfApi && isLinkedSizeOverride(overrideKey) && isLinkedSize(sizeKey)) {
+			initialOverride = this.sfApi.getLinkedSetting(overrideKey) ?? false;
+			initialSize = this.sfApi.getLinkedSetting(sizeKey) ?? 1;
+		} else {
+			initialOverride = settings[overrideKey];
+			initialSize = settings[sizeKey];
+		}
 
 		renderToggleWithRevealCard(
 			body,
@@ -494,7 +504,7 @@ export class TextStyleModal extends Modal {
 
 	/** Linked sizes write through the host; code/quote sizes stay formatForge-local. */
 	private writeSizeSetting(key: EditorSizeOverrideKey | EditorSizeKey, value: boolean | number): Promise<void> {
-		if (this.sfApi && (LINKED_SIZE_OVERRIDE_KEYS.has(key) || LINKED_SIZE_KEYS.has(key))) {
+		if (this.sfApi && (isLinkedSizeOverride(key) || isLinkedSize(key))) {
 			return this.plugin.updateHostOwnedSetting(key, value);
 		}
 		return this.plugin.updateSetting(key, value);
@@ -635,10 +645,10 @@ export class TextStyleModal extends Modal {
 	/** Region preview size: the overridden slider value when size override is on, else 1em. */
 	private regionPreviewSizeEm(overrideSizeKey: EditorSizeOverrideKey, sizeKey: EditorSizeKey): () => number {
 		return () => {
-			if (this.sfApi && LINKED_SIZE_OVERRIDE_KEYS.has(overrideSizeKey)) {
-				const override = this.sfApi.getLinkedSetting(overrideSizeKey as SfLinkedFormattingKey);
-				const size = this.sfApi.getLinkedSetting(sizeKey as SfLinkedFormattingKey);
-				return override ? Number(size) || 1 : 1;
+			if (this.sfApi && isLinkedSizeOverride(overrideSizeKey) && isLinkedSize(sizeKey)) {
+				const override = this.sfApi.getLinkedSetting(overrideSizeKey);
+				const size = this.sfApi.getLinkedSetting(sizeKey);
+				return override ? size || 1 : 1;
 			}
 			const settings = this.plugin.getTypedSettings();
 			return settings[overrideSizeKey] ? settings[sizeKey] || 1 : 1;

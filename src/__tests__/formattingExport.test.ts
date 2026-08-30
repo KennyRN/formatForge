@@ -75,6 +75,56 @@ describe("formatting export", () => {
 		expect(migrated.palette?.colorPaletteName).toBe(DEFAULT_SETTINGS.colorPaletteName);
 	});
 
+	it("migrates version 2 cycling-guide keys into the storyForge interface section", () => {
+		const migrated = parseFormattingExport(
+			JSON.stringify({
+				format: FORMATTING_EXPORT_FORMAT,
+				version: 2,
+				exportedAt: "2026-08-05T10:30:00.000Z",
+				included: {
+					textStyling: true,
+					storyForgeInterface: true,
+					palette: false,
+				},
+				textStyling: {
+					bodyTextSize: 1.2,
+					cyclingGuideColor: "#123456",
+					cyclingGuideEnabled: true,
+				},
+				storyForgeInterface: { recommendHeaderColor: "#abcdef" },
+				palette: null,
+			}),
+		);
+		expect(migrated.version).toBe(FORMATTING_EXPORT_VERSION);
+		expect(migrated.textStyling).toEqual({ bodyTextSize: 1.2 });
+		expect(migrated.storyForgeInterface).toEqual({
+			recommendHeaderColor: "#abcdef",
+			cyclingGuideColor: "#123456",
+			cyclingGuideEnabled: true,
+		});
+	});
+
+	it("creates an interface section when a version 2 text-only export held cycling-guide keys", () => {
+		const migrated = parseFormattingExport(
+			JSON.stringify({
+				format: FORMATTING_EXPORT_FORMAT,
+				version: 2,
+				exportedAt: "2026-08-05T10:30:00.000Z",
+				included: {
+					textStyling: true,
+					storyForgeInterface: false,
+					palette: false,
+				},
+				textStyling: { bodyTextSize: 1.1, cyclingGuideInterval: "large" },
+				storyForgeInterface: null,
+				palette: null,
+			}),
+		);
+		expect(migrated.included.storyForgeInterface).toBe(true);
+		expect(migrated.textStyling).toEqual({ bodyTextSize: 1.1 });
+		expect(migrated.storyForgeInterface).toEqual({ cyclingGuideInterval: "large" });
+	});
+
 	it("rejects unrelated or unsupported JSON", () => {
 		expect(() => parseFormattingExport("{}")).toThrow("not a formatForge");
 		expect(() =>
