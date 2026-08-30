@@ -257,11 +257,11 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 		// Sizes: storyForge linked settings when present, otherwise formatForge's own.
 		if (this.sfApi) {
 			const linked = this.sfApi.getLinkedSettings();
-			vars["--sf-body-size"] = linked.bodyTextOverrideSize ? `${linked.bodyTextSize as number}em` : null;
+			vars["--sf-body-size"] = linked.bodyTextOverrideSize ? `${linked.bodyTextSize}em` : null;
 			for (const n of [1, 2, 3, 4, 5, 6] as const) {
 				const override = linked[`heading${n}OverrideSize` as const];
 				const size = linked[`heading${n}Size` as const];
-				vars[`--sf-h${n}-size`] = override ? `${size as number}em` : null;
+				vars[`--sf-h${n}-size`] = override ? `${size}em` : null;
 			}
 		} else {
 			vars["--sf-body-size"] = s.bodyTextOverrideSize ? `${s.bodyTextSize}em` : null;
