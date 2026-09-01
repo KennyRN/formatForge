@@ -1,6 +1,6 @@
 {
 	"name": "formatforge",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"description": "Simple typography and colour formatting for Obsidian \u2014 standalone, and for the Forge plugin family.",
 	"main": "main.js",
 	"scripts": {
