@@ -1,7 +1,7 @@
 {
 	"id": "formatforge",
 	"name": "formatForge",
-	"version": "0.2.2",
+	"version": "0.3.0",
 	"minAppVersion": "1.13.0",
 	"description": "Simple typography and colour formatting \u2014 standalone, and for the Forge plugin family.",
 	"author": "volcanicMole",
