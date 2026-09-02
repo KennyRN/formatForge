@@ -69,3 +69,4 @@ export class Modal {
 }
 export function setIcon(_el: HTMLElement, _icon: string): void {}
 export function addIcon(_id: string, _svg: string): void {}
+export function setTooltip(_el: HTMLElement, _tooltip: string): void {}

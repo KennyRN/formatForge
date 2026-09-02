@@ -24,6 +24,7 @@ import { FormatForgeSettingsModal } from "./view/FormatForgeSettingsModal";
 import { TextStyleModal } from "./view/TextStyleModal";
 import { FormattingExportModal } from "./view/FormattingExportModal";
 import type { FontCardHost } from "./view/styleModalHelpers";
+import { registerCustomIcons } from "./icons";
 
 /**
  * Bold/Italic, Link/Hovered-link, and Highlight/Highlighted-text colours used to share one
@@ -62,6 +63,7 @@ export default class FormatForgePlugin extends Plugin implements FontCardHost {
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+		registerCustomIcons();
 
 		this.addSettingTab(new FormatForgeSettingsTab(this.app, this));
 		this.addCommands();

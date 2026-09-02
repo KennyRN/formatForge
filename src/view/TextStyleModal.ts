@@ -6,12 +6,32 @@ import type { SfFormattingApi } from "../storyforgeBridge";
 import {
 	bindColorSwatchButton,
 	renderCustomFontCard,
-	renderTabbedBody,
 	renderToggleWithRevealCard,
 	wireCardToggle,
-	type StyleModalTab,
 } from "./styleModalHelpers";
 import { mountStylePreviewSample } from "./stylePreviewSample";
+import {
+	ensureLeafPath,
+	isLeafNode,
+	nodeAtPath,
+	renderIconBreadcrumb,
+	type BreadcrumbNode,
+} from "./textStyleBreadcrumb";
+import {
+	ICON_BLOCKQUOTE,
+	ICON_LINK2,
+	ICON_LIST3_FILLED,
+	ICON_PAGE_PORTRAIT,
+	ICON_PAGE_TEXT,
+	ICON_TEXT_HEADER_1,
+	ICON_TEXT_HEADER_2,
+	ICON_TEXT_HEADER_3,
+	ICON_TEXT_HEADER_4,
+	ICON_TEXT_HEADER_4_CARET,
+	ICON_TEXT_HEADER_5,
+	ICON_TEXT_HEADER_6,
+	ICON_VERTICAL_SCROLL_POINT,
+} from "../icons";
 
 const EDITOR_SCROLLBAR_THICKNESS_ORDER = ["thin", "medium", "thick"] as const;
 const EDITOR_SCROLLBAR_THICKNESS_LABELS = ["Thin", "Medium", "Thick"];
@@ -91,6 +111,12 @@ export class TextStyleModal extends Modal {
 		this.contentEl.empty();
 	}
 
+	private preferredChild = (parentId: string): string | undefined => {
+		if (parentId === "body") return this.selectedBodyRegion;
+		if (parentId === "other") return `h${this.selectedOtherHeadingLevel}`;
+		return undefined;
+	};
+
 	private render(): void {
 		const { contentEl } = this;
 		contentEl.empty();
@@ -104,6 +130,9 @@ export class TextStyleModal extends Modal {
 
 		const layout = contentEl.createDiv({ cls: "ff-text-style-layout" });
 		const controls = layout.createDiv({ cls: "ff-text-style-controls" });
+		const crumbRow = controls.createDiv({ cls: "sf-ui-format-crumb-row" });
+		const crumbBody = controls.createDiv({ cls: "sf-ui-format-crumb-body" });
+		const leafHost = crumbBody.createDiv({ cls: "sf-ui-format-crumb-leaf" });
 		const previewPane = layout.createDiv({ cls: "ff-style-preview-pane" });
 		previewPane.createDiv({ cls: "ff-style-preview-label", text: "Preview" });
 		const preview = previewPane.createDiv({ cls: "ff-style-preview" });
@@ -117,42 +146,37 @@ export class TextStyleModal extends Modal {
 		};
 		remountPreview();
 
-		const tabs: StyleModalTab[] = [
+		const tree: BreadcrumbNode[] = [
 			{
 				id: "body",
 				label: "Body",
-				render: (body) => {
-					renderTabbedBody(
-						body,
-						[
-							{
-								id: "text",
-								label: "Text",
-								render: (tab) => this.renderBodyTextTab(tab, settings, restyle),
-							},
-							{
-								id: "quote",
-								label: "Quote",
-								render: (tab) => this.renderBodyQuoteTab(tab, settings, restyle),
-							},
-							{
-								id: "links",
-								label: "Links and lists",
-								render: (tab) => this.renderBodyLinksAndListsTab(tab, settings, restyle),
-							},
-						],
-						{
-							initialId: this.selectedBodyRegion,
-							onActivate: (id) => {
-								this.selectedBodyRegion = id;
-							},
-						},
-					);
-				},
+				icon: ICON_PAGE_TEXT,
+				children: [
+					{
+						id: "text",
+						label: "Text",
+						icon: ICON_PAGE_PORTRAIT,
+						render: (tab) => this.renderBodyTextTab(tab, settings, restyle),
+					},
+					{
+						id: "quote",
+						label: "Quote",
+						icon: ICON_BLOCKQUOTE,
+						render: (tab) => this.renderBodyQuoteTab(tab, settings, restyle),
+					},
+					{
+						id: "links",
+						label: "Links and lists",
+						icon: ICON_LINK2,
+						icons: [ICON_LINK2, ICON_LIST3_FILLED],
+						render: (tab) => this.renderBodyLinksAndListsTab(tab, settings, restyle),
+					},
+				],
 			},
 			{
 				id: "h1",
 				label: "H1",
+				icon: ICON_TEXT_HEADER_1,
 				render: (body) => {
 					this.renderSizeCard(
 						body,
@@ -195,6 +219,7 @@ export class TextStyleModal extends Modal {
 			{
 				id: "h2",
 				label: "H2",
+				icon: ICON_TEXT_HEADER_2,
 				render: (body) => {
 					this.renderSizeCard(body, "Override theme's default header size", "Header size", "heading2OverrideSize", "heading2Size", 1, 2.5, restyle);
 					this.renderColorOverrideCard(body, settings, "Header colour", "heading2OverrideColor", "heading2Color", restyle);
@@ -213,6 +238,7 @@ export class TextStyleModal extends Modal {
 			{
 				id: "h3",
 				label: "H3",
+				icon: ICON_TEXT_HEADER_3,
 				render: (body) => {
 					this.renderSizeCard(body, "Override theme's default header size", "Header size", "heading3OverrideSize", "heading3Size", 1, 2.5, restyle);
 					this.renderColorOverrideCard(body, settings, "Header colour", "heading3OverrideColor", "heading3Color", restyle);
@@ -231,33 +257,40 @@ export class TextStyleModal extends Modal {
 			{
 				id: "other",
 				label: "H4–6",
-				render: (body) => {
-					renderTabbedBody(
-						body,
-						([4, 5, 6] as const).map((n) => ({
-							id: `h${n}`,
-							label: `H${n}`,
-							render: (levelBody) => this.renderOtherHeadingLevel(levelBody, n, settings, restyle),
-						})),
-						{
-							initialId: `h${this.selectedOtherHeadingLevel}`,
-							onActivate: (id) => {
-								this.selectedOtherHeadingLevel = Number(id.slice(1)) as 4 | 5 | 6;
-							},
-						},
-					);
-				},
+				icon: ICON_TEXT_HEADER_4_CARET,
+				children: ([4, 5, 6] as const).map((n) => ({
+					id: `h${n}`,
+					label: `H${n}`,
+					icon: n === 4 ? ICON_TEXT_HEADER_4 : n === 5 ? ICON_TEXT_HEADER_5 : ICON_TEXT_HEADER_6,
+					render: (levelBody: HTMLElement) => this.renderOtherHeadingLevel(levelBody, n, settings, restyle),
+				})),
 			},
 			{
 				id: "extras",
 				label: "Extras",
+				icon: ICON_VERTICAL_SCROLL_POINT,
 				render: (body) => {
 					this.renderEditorScrollbarGroup(body);
 				},
 			},
 		];
 
-		renderTabbedBody(controls, tabs);
+		let path: string[] = [];
+		const applyPath = (next: string[]) => {
+			const leafPath = ensureLeafPath(tree, next, this.preferredChild);
+			const same = leafPath.length === path.length && leafPath.every((id, i) => id === path[i]);
+			path = leafPath;
+			if (path[0] === "body" && path[1]) this.selectedBodyRegion = path[1];
+			if (path[0] === "other" && path[1]) {
+				this.selectedOtherHeadingLevel = Number(path[1].slice(1)) as 4 | 5 | 6;
+			}
+			renderIconBreadcrumb(crumbRow, tree, path, applyPath);
+			if (same && leafHost.childElementCount > 0) return;
+			leafHost.empty();
+			const leaf = nodeAtPath(tree, path);
+			if (isLeafNode(leaf) && leaf.render) leaf.render(leafHost);
+		};
+		applyPath(["body", "text"]);
 	}
 
 	private renderBodyTextTab(body: HTMLElement, settings: FormatForgeSettings, restyle: () => void): void {
